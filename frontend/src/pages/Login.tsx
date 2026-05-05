@@ -46,7 +46,7 @@ export default function LoginPage() {
             localStorage.setItem("access_token", data.session.access_token);
             localStorage.setItem("user", JSON.stringify(data.user));
 
-            navigate("/");
+            navigate("/profile");
         } catch (err: any) {
             setError(err.message || "Invalid email or password.");
         } finally {
