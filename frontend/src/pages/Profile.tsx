@@ -1,6 +1,9 @@
+import axios from "axios";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+
+const API = "http://localhost:5000/api";
 
 const UNIVERSITIES = [
     "Yonsei University",
@@ -45,6 +48,11 @@ interface UserProfile{
     lifestyle_tags: string[];
     languages_spoken: string[];
 }
+//helper to get auth token from supabase session
+const getToken = async () =>{
+    const {data: {session}} = await supabase.auth.getSession();
+    return session?.access_token || "";
+};
 
 export default function Profile(){
     const navigate = useNavigate();
@@ -77,17 +85,14 @@ export default function Profile(){
     const fetchProfile = async() => {
         setLoading(true);
         try{
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) { navigate("/login"); return;}
+            const token = await getToken();
+            if (!token) {navigate("/login");return;}
 
-            const { data, error } = await supabase
-                .from("users")
-                .select("*")
-                .eq("id", user.id)
-                .single();
-
-                if (error) throw error;
-                if (data) setProfile(data);
+            //fetch profile from backend
+            const {data} = await axios.get(`${API}/users/profile`,{
+                headers: {Authorization: `Bearer ${token}`},
+            });
+            setProfile(data);
 
         }catch(err : any){
             setError("Failed to load profile.");
@@ -117,25 +122,29 @@ export default function Profile(){
         setSuccess("");
 
         try{
-            let photoUrl = profile.profile_photo;
+            const token = await getToken();
 
-            //upload new photo if selected
-            if(photoFile){
+           //upload to Supabase Storage directly if there's a new photo
+            let photoUrl = profile.profile_photo;
+            if (photoFile){
                 const fileExt = photoFile.name.split(".").pop();
                 const fileName = `${profile.id}.${fileExt}`;
-                const { error: uploadError} = await supabase.storage
+                const { error: uploadError } = await supabase.storage
                     .from("profile-photos")
-                    .upload(fileName, photoFile, {upsert: true});
-                    if(!uploadError){
-                        const { data:urlData } = supabase.storage
-                            .from("profile-photos")
-                            .getPublicUrl(fileName);
-                        photoUrl = urlData.publicUrl;
-                    }
+                    .upload(fileName, photoFile, { upsert:true});
+
+                if (!uploadError){
+                    const { data: urlData} = supabase.storage
+                        .from("profile-photos")
+                        .getPublicUrl(fileName);
+                    photoUrl = urlData.publicUrl;
+                }
             }
-            const {error : updateError} = await supabase
-                .from("users")
-                .update({
+
+            //send updated profile to backend
+            await axios.put(
+                `${API}/users/profile`,
+                {
                     name: profile.name,
                     university: profile.university,
                     nationality: profile.nationality,
@@ -144,18 +153,19 @@ export default function Profile(){
                     lifestyle_tags: profile.lifestyle_tags,
                     languages_spoken: profile.languages_spoken,
                     profile_photo: photoUrl,
-                })
-                .eq("id", profile.id);
+                },
+                {headers: { Authorization: `Bearer ${token}` } }
+            );
 
-            if (updateError) throw updateError;
-
-            setProfile((prev) => ({ ...prev,profile_photo:photoUrl}));
+            setProfile((prev) => ({ ...prev, profile_photo: photoUrl }));
             setSuccess("Profile updated successfully.");
             setEditing(false);
             setPhotoFile(null);
             setPhotoPreview(null);
+
         }catch(err:any){
-            setError("Failed to save profile. Please try again.");
+            setError(err.response?.data?.error || "Failed to save profile.");
+         
         }finally{
             setSaving(false);
         }

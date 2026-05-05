@@ -1,6 +1,9 @@
+import axios from "axios";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+
+const API = "http://localhost:5000/api";
 
 const UNIVERSITIES = [
     "Yonsei University",
@@ -73,55 +76,45 @@ export default function Register(){
 
         try{
 
-            //Sign up with Supabase Auth
-            const { data: authData, error: authError } = await supabase.auth.signUp({
-                email: form.email,
-                password: form.password,
-            });
-            if (authError) throw authError;
-            if (!authData.user) throw new Error("Signup Failed.");
+            //Build FormData for Express Backend
 
-            //Upload student ID if provided
-            let studentIdUrl = null;
-            if (studentIdFile){
-                const fileExt = studentIdFile.name.split(".").pop();
-                const fileName = `${authData.user.id}.${fileExt}`;
-                const { error: uploadError} = await supabase.storage
-                    .from("student-id-docs")
-                    .upload(fileName, studentIdFile);
-                if (!uploadError){
-                    studentIdUrl = fileName;
-                }
+            const formData = new FormData();
+            formData.append("name",form.name);
+            formData.append("email",form.email);
+            formData.append("password",form.password);
+            formData.append("university",form.university);
+            formData.append("nationality",form.nationality);
+            if(studentIdFile){
+                formData.append("studentId",studentIdFile);
             }
 
-            //Insert data into users table
-
-            const { error: dbError } = await supabase.from("users").insert({
-                id: authData.user.id,
-                email: form.email,
-                name: form.name,
-                university: form.university,
-                nationality: form.nationality,
-                student_id_doc: studentIdUrl,
-                is_verified: false,
+            //send to backend
+            await axios.post(`{API}/auth/register`, formData,{
+                headers: {"Content-Type": "multipart/form-data" },
             });
-
-            if (dbError) throw dbError;
 
             navigate("/login");
 
         }catch(err: any){
-            setError(err.message || "Something went wrong.Please try again.");
+            setError(err.response?.data?.error || err.message || "Registration failed.Please try again.");
 
         }finally{
             setLoading(false);
         }
     };
 
+    const handleSocialLogin = async (provider: "google" | "kakao")=>{
+        const { error } = await supabase.auth.signInWithOAuth({
+            provider,
+            options: { redirectTo: window.location.origin + "/profile" },
+        });
+        if (error) setError(error.message);
+    };
+
     return(
         <div style={styles.page}>
             {/*Background accent*/}
-            <div style={styles.bgAccent}></div>
+            <div style={styles.bgAccent}/>
             <div style={styles.container}>
                 {/*left panel*/}
                 <div style={styles.leftPanel}>
@@ -142,6 +135,7 @@ export default function Register(){
                                     ...styles.stepDot,
                                     background: step >=s ? "#1a1a1a" : "transparent",
                                     border: step >= s ? "2px solid #1a1a1a" : "2px solid #ccc",
+                                    color: step >= s ? "#fff" : "#ccc",
 
                                 }}>
                                     {step > s ? "✓" : s}
@@ -157,21 +151,38 @@ export default function Register(){
                 {/*Right Panel form */}
                 <div style={styles.rightPanel}>
                     <div style={styles.formCard}>
-            <h2 style={styles.formTitle}>
-                {step === 1 ? "Create your account" : "Tell us about yourself"}
-                </h2>
-                <p style={styles.formSub}>
-                {step === 1 ? "Step 1 of 2" : "Step 2 of 2"}
-                </p>
-    
-                {error && (
-                <div style={styles.errorBox}>
-                    {error}
-                </div>
-                )}
+                        <h2 style={styles.formTitle}>
+                            {step === 1 ? "Create your account" : "Tell us about yourself"}
+                        </h2>
+                        <p style={styles.formSub}>
+                        {step === 1 ? "Step 1 of 2" : "Step 2 of 2"}
+                        </p>
+            
+                        {error && 
+                        <div style={styles.errorBox}>
+                            {error}
+                        </div>
+                        }
     
                 {step === 1 && (
-                <div style={styles.fields}>
+                    <div style={styles.fields}>
+                        {/*Social Login*/}
+                        <div style={styles.socialWrap}>
+                            <button style={styles.googleBtn} onClick={()=> handleSocialLogin("google")}>
+                                <img src="https://www.google.com/favicon.ico" width={16} height={16} alt="Google"/>
+                                Continue with Google 
+                            </button>
+                            <button style={styles.kakaoBtn} onClick={() => handleSocialLogin("kakao")}>
+                                <span style={{fontSize: 16 }}>💬</span>
+                                Continue with Kakao
+                            </button>
+                        </div>
+                        <div style={styles.divider}>
+                            <span style={styles.dividerLine}/>
+                            <span style={styles.dividerText}>or</span>
+                            <span style={styles.dividerLine}/>
+                        </div>
+                
                     <Field label="Full Name" name="name" type="text"
                     value={form.name} onChange={handleChange} placeholder="e.g. Min-jun Lee" />
                     <Field label="Email Address" name="email" type="email"
@@ -188,38 +199,38 @@ export default function Register(){
                 )}
     
                 {step === 2 && (
-                <div style={styles.fields}>
+                    <div style={styles.fields}>
+                        <div style={styles.fieldGroup}>
+                            <label style={styles.label}>University</label>
+                                <select name="university" value={form.university}
+                                    onChange={handleChange} style={styles.select}>
+                                        <option value="">Select your university</option>
+                                            {UNIVERSITIES.map(u => <option key={u} value={u}>{u}</option>)}
+                                </select>
+                        </div>
+    
                     <div style={styles.fieldGroup}>
-                    <label style={styles.label}>University</label>
-                    <select name="university" value={form.university}
-                        onChange={handleChange} style={styles.select}>
-                        <option value="">Select your university</option>
-                        {UNIVERSITIES.map(u => <option key={u} value={u}>{u}</option>)}
-                    </select>
+                        <label style={styles.label}>Nationality</label>
+                            <select name="nationality" value={form.nationality}
+                                onChange={handleChange} style={styles.select}>
+                                <option value="">Select your nationality</option>
+                                {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
+                            </select>
                     </div>
     
                     <div style={styles.fieldGroup}>
-                    <label style={styles.label}>Nationality</label>
-                    <select name="nationality" value={form.nationality}
-                        onChange={handleChange} style={styles.select}>
-                        <option value="">Select your nationality</option>
-                        {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
-                    </select>
-                    </div>
-    
-                    <div style={styles.fieldGroup}>
-                    <label style={styles.label}>
-                        Student ID <span style={styles.optional}>(optional but recommended)</span>
-                    </label>
-                    <label style={styles.uploadBox}>
-                        <input type="file" accept="image/*,.pdf"
-                        style={{ display: "none" }}
-                        onChange={(e) => setStudentIdFile(e.target.files?.[0] || null)} />
-                        <span style={styles.uploadIcon}>↑</span>
-                        <span style={styles.uploadText}>
-                        {studentIdFile ? studentIdFile.name : "Upload student ID or enrollment cert."}
-                        </span>
-                    </label>
+                        <label style={styles.label}>
+                            Student ID <span style={styles.optional}>(optional but recommended)</span>
+                        </label>
+                        <label style={styles.uploadBox}>
+                            <input type="file" accept="image/*,.pdf"
+                            style={{ display: "none" }}
+                            onChange={(e) => setStudentIdFile(e.target.files?.[0] || null)} />
+                            <span style={styles.uploadIcon}>↑</span>
+                            <span style={styles.uploadText}>
+                            {studentIdFile ? studentIdFile.name : "Upload student ID or enrollment cert."}
+                            </span>
+                        </label>
                     <p style={styles.hint}>Helps verify your student status. Kept private.</p>
                     </div>
     
@@ -231,18 +242,18 @@ export default function Register(){
                         onClick={handleSubmit} disabled={loading}>
                         {loading ? "Creating account..." : "Create Account"}
                     </button>
-                    </div>
                 </div>
-                )}
+            </div>
+            )}
     
                 <p style={styles.loginPrompt}>
                 Already have an account?{" "}
                 <Link to="/login" style={styles.loginLink}>Sign in</Link>
                 </p>
-            </div>
                 </div>
             </div>
         </div>
+    </div>
     );
 
 
@@ -381,8 +392,14 @@ const styles: Record<string, React.CSSProperties>={
         fontSize: 24,
         fontWeight: 400,
         color: "#1a1a1a",
-        marginBottom: 32,
+        marginBottom: 4,
         letterSpacing: "0.05em",
+    },
+    formSub:{
+        fontSize: 13,
+        color: "#aaa",
+        marginBottom: 32,
+        letterSpacing: "0.05em"
     },
     errorBox: {
         background: "#fff5f5",
@@ -398,6 +415,58 @@ const styles: Record<string, React.CSSProperties>={
         display: "flex",
         flexDirection: "column",
         gap: 20,
+    },
+    socialWrap: {
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+    },
+    googleBtn: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 10,
+        padding: "12px 20px",
+        border: "1.5px solid #ddd",
+        background: "#fff",
+        fontSize: 13,
+        cursor: "pointer",
+        letterSpacing: "0.05em",
+        borderRadius: 1,
+        fontFamily: "'Georgia', serif",
+
+    },
+    kakaoBtn: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 10,
+        padding: "12px 20px",
+        border: "none",
+        background: "#FEE500",
+        fontSize: 13,
+        cursor: "pointer",
+        letterSpacing: "0.05em",
+        borderRadius: 1,
+        color: "#1a1a1a",
+        fontFamily: "'Georgia', serif",
+
+    },
+    divider: {
+        display: "flex",
+        alignItems: "center",
+        gap: 12,
+    },
+    dividerLine: {
+        flex: 1,
+        height: 1,
+        background: "#eee",
+        display: "block",
+    },
+    dividerText: {
+        fontSize: 12,
+        color: "#bbb",
+        letterSpacing: "0.1em",
     },
     fieldGroup: {
         display: "flex",
