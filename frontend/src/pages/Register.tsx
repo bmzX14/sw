@@ -1,124 +1,114 @@
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
+import { UNIVERSITIES, NATIONALITIES } from "../lib/registerOptions";
+import { registerUser } from "../services/authService";
 
-const UNIVERSITIES = [
-    "Yonsei University",
-    "Seoul National University",
-    "Korea University",
-    "Ewha Womans University",
-    "Hongik University",
-    "Sogang University",
-    "Hanyang University",
-    "Sungkyunkwan University",
-    "Myongji University",
-    "Other",
-];
+import type { RegisterForm } from "../types/user";
 
-const NATIONALITIES =[
-    "Korean", "American", "Chinese", "Japanese", "Vietnamese",
-    "French", "German", "British", "Canadian", "Australian",
-    "Indian", "Brazilian", "Myanmar", "Other",
-];
+export default function Register() {
+  const navigate = useNavigate();
 
-export default function Register(){
-    const navigate = useNavigate();
-    const [step, setStep] = useState(1);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
-    const [studentIdFile, setStudentIdFile] = useState<File | null>(null);
+  const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  
+  const [form, setForm] = useState<RegisterForm>({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+    university: "",
+    nationality: "",
+  });
 
-    const [form, setForm] = useState({
-        name: "",
-        email: "",
-        password: "",
-        confirmPassword: "",
-        university: "",
-        nationality: "",
-    });
+  // Handler for form field changes
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+    setError("");
+  };
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-        setForm({ ...form,[e.target.name]: e.target.value});
-        setError("");
-    };
+  // Handler for handling Student ID file change
+//   const handleStudentIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+//     const file = e.target.files?.[0];
 
-    const validateStep1 = () => {
-        if (!form.name.trim()) return "Please enter your Full Name.";
-        if (!form.email.trim()) return "Please enter your Email.";
-        if (!form.password) return "Please enter a Password.";
-        if (form.password.length<6) return "Password must be at least 6 characters.";
-        if (form.password!== form.confirmPassword) return "Passwords do not match.";
-        return "";
-    
-    };
+//     if (!file) return;
 
-    const validateStep2 = () => {
-        if (!form.university) return "Please select your University.";
-        if (!form.nationality) return "Please select you Naltionality."
-        return "";
-    };
+//     const allowedTypes = [
+//         "image/jpeg", 
+//         "image/png", 
+//         "image/webp", 
+//         "application/pdf",
+//     ];
 
-    const handleNext = () => {
-        const err = validateStep1();
-        if (err) { setError(err); return;}
-        setStep(2);
-    };
+//     if (!allowedTypes.includes(file.type)) {
+//         setError("Student ID must be an image or PDF file.");
+//         return;
+//     }
 
-    const handleSubmit = async () =>{
-        const err = validateStep2();
-        if (err) { setError(err); return; }
+//     if (file.size > 2 * 1024 * 1024) {
+//         setError("Student ID file must be less than 2MB.");
+//         return;
+//     }
 
-        setLoading(true);
-        setError("");
+//     setStudentIdFile(file);
+//     setError("");   
+//     };
 
-        try{
+  // Validation for step 1
+  const validateStep1 = () => {
+    if (!form.name.trim()) return "Please enter your Full Name.";
+    if (!form.email.trim()) return "Please enter your Email.";
+    if (!form.password) return "Please enter a Password.";
+    if (form.password.length < 6) return "Password must be at least 6 characters.";
+    if (form.password !== form.confirmPassword) return "Passwords do not match.";
+    return "";
+  };
 
-            //Sign up with Supabase Auth
-            const { data: authData, error: authError } = await supabase.auth.signUp({
-                email: form.email,
-                password: form.password,
-            });
-            if (authError) throw authError;
-            if (!authData.user) throw new Error("Signup Failed.");
+  // Validation for step 2
+  const validateStep2 = () => {
+    if (!form.university) return "Please select your University.";
+    if (!form.nationality) return "Please select your Nationality.";
+    return "";
+  };
 
-            //Upload student ID if provided
-            let studentIdUrl = null;
-            if (studentIdFile){
-                const fileExt = studentIdFile.name.split(".").pop();
-                const fileName = `${authData.user.id}.${fileExt}`;
-                const { error: uploadError} = await supabase.storage
-                    .from("student-id-docs")
-                    .upload(fileName, studentIdFile);
-                if (!uploadError){
-                    studentIdUrl = fileName;
-                }
-            }
+  // Handler for going to next step after validating step 1
+  const handleNext = () => {
+    const err = validateStep1();
 
-            //Insert data into users table
+    if (err) {
+      setError(err);
+      return;
+    }
 
-            const { error: dbError } = await supabase.from("users").insert({
-                id: authData.user.id,
-                email: form.email,
-                name: form.name,
-                university: form.university,
-                nationality: form.nationality,
-                student_id_doc: studentIdUrl,
-                is_verified: false,
-            });
+    setStep(2);
+  };
 
-            if (dbError) throw dbError;
+  // Final submission handler
+  const handleSubmit = async () => {
+    const err = validateStep2();
 
-            navigate("/login");
+    if (err) {
+      setError(err);
+      return;
+    }
 
-        }catch(err: any){
-            setError(err.message || "Something went wrong.Please try again.");
+    setLoading(true);
+    setError("");
 
-        }finally{
-            setLoading(false);
-        }
-    };
+    try {
+      await registerUser(form);
+      navigate("/login");
+    } catch (err: any) {
+      setError(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    return(
+  return(
         <div style={styles.page}>
             {/*Background accent*/}
             <div style={styles.bgAccent}></div>
@@ -207,21 +197,22 @@ export default function Register(){
                     </select>
                     </div>
     
-                    <div style={styles.fieldGroup}>
+                    {/* <div style={styles.fieldGroup}>
                     <label style={styles.label}>
                         Student ID <span style={styles.optional}>(optional but recommended)</span>
                     </label>
                     <label style={styles.uploadBox}>
                         <input type="file" accept="image/*,.pdf"
                         style={{ display: "none" }}
-                        onChange={(e) => setStudentIdFile(e.target.files?.[0] || null)} />
+                        onChange={handleStudentIdChange}
+                        />
                         <span style={styles.uploadIcon}>↑</span>
                         <span style={styles.uploadText}>
                         {studentIdFile ? studentIdFile.name : "Upload student ID or enrollment cert."}
                         </span>
                     </label>
-                    <p style={styles.hint}>Helps verify your student status. Kept private.</p>
-                    </div>
+                    <p style={styles.hint}>JPG, PNG, WEBP, or PDF. Max 2MB. Kept private.</p>
+                    </div> */}
     
                     <div style={styles.btnRow}>
                     <button style={styles.btnOutline} onClick={() => setStep(1)}>

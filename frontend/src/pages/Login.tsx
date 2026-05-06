@@ -1,11 +1,14 @@
 import { useState } from "react";
+import type { ChangeEvent, CSSProperties } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
+import { loginUser } from "../services/authService";
+import type { LoginForm } from "../types/user";
+
 
 export default function LoginPage() {
     const navigate = useNavigate();
 
-    const [form, setForm] = useState({
+    const [form, setForm] = useState<LoginForm>({
         email: "",
         password: "",
     });
@@ -13,7 +16,7 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
         setForm({ ...form, [e.target.name]: e.target.value });
         setError("");
     };
@@ -26,33 +29,24 @@ export default function LoginPage() {
 
     const handleLogin = async () => {
         const err = validateLogin();
-        if (err) {
-            setError(err);
-            return;
-        }
 
-        setLoading(true);
-        setError("");
+    if (err) {
+        setError(err);
+        return;
+    }
 
-        try {
-            const { data, error: loginError } = await supabase.auth.signInWithPassword({
-                email: form.email,
-                password: form.password,
-            });
+    setLoading(true);
+    setError("");
 
-            if (loginError) throw loginError;
-            if (!data.session) throw new Error("Login failed.");
-
-            localStorage.setItem("access_token", data.session.access_token);
-            localStorage.setItem("user", JSON.stringify(data.user));
-
-            navigate("/profile");
-        } catch (err: any) {
-            setError(err.message || "Invalid email or password.");
-        } finally {
-            setLoading(false);
-        }
-    };
+    try {
+        await loginUser(form);
+        navigate("/profile");
+    } catch (err: any) {
+        setError(err.message || "Invalid email or password.");
+    } finally {
+        setLoading(false);
+    }
+};
 
     return (
         <div style={styles.page}>
@@ -161,7 +155,7 @@ function Field({ label, name, type, value, onChange, placeholder }: {
     );
 }
 
-const styles: Record<string, React.CSSProperties> = {
+const styles: Record<string, CSSProperties> = {
     page: {
         minHeight: "100vh",
         background: "#fafaf8",

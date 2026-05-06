@@ -1,181 +1,207 @@
 import { useEffect, useState } from "react";
+import type { ChangeEvent, CSSProperties } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
 
-const UNIVERSITIES = [
-    "Yonsei University",
-    "Seoul National University",
-    "Korea University",
-    "Ewha Womans University",
-    "Hongik University",
-    "Sogang University",
-    "Hanyang University",
-    "Sungkyunkwan University",
-    "Myongji University",
-    "Other",
-];
+import { UNIVERSITIES, NATIONALITIES } from "../lib/registerOptions";
+import { LIFESTYLE_TAGS, LANGUAGES } from "../lib/profileOptions";
+import { logoutUser } from "../services/authService";
+import {
+  getCurrentUserProfile,
+  getEmptyProfile,
+  updateUserProfile,
+  uploadProfilePhoto,
+  uploadStudentIdCard,
+} from "../services/profileService";
+import type { UserProfile } from "../types/user";
 
-const NATIONALITIES =[
-    "Korean", "American", "Chinese", "Japanese", "Vietnamese",
-    "French", "German", "British", "Canadian", "Australian",
-    "Indian", "Brazilian", "Myanmar", "Other",
-];
+export default function Profile() {
+  const navigate = useNavigate();
 
-const LIFESTYLE_TAGS = [
-    "Non-smoker","Smoker","Early bird","Night owl",
-    "Quiet", "Social", "Pet-friendly", "No pets",
-    "Clean", "Relaxed","Study-focused","Gym-goer",
-];
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
-const LANGUAGES =[
-    "English", "Korean", "Chinese", "Japanese",
-    "French", "Spanish", "Vietnamese", "German"
-];
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [studentIdFile, setStudentIdFile] = useState<File | null>(null);
 
-interface UserProfile{
-    id: string;
-    name: string;
-    email: string;
-    university: string;
-    nationality: string;
-    budget_min: number | null;
-    budget_max: number | null;
-    profile_photo: string | null;
-    is_verified: boolean;
-    lifestyle_tags: string[];
-    languages_spoken: string[];
-}
+  const [profile, setProfile] = useState<UserProfile>(getEmptyProfile());
 
-export default function Profile(){
-    const navigate = useNavigate();
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [editing, setEditing] = useState(false);
-    const [error, setError] = useState("");
-    const [success, setSuccess] = useState("");
-    const [photoFile,setPhotoFile] = useState<File | null>(null);
-    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
-    
-    const [profile, setProfile] = useState<UserProfile>({
-        id: "",
-        name: "",
-        email: "",
-        university: "",
-        nationality: "",
-        budget_min: null,
-        budget_max: null,
-        profile_photo: null,
-        is_verified: false,
-        lifestyle_tags: [],
-        languages_spoken: [],
-    });
+  useEffect(() => {
+    fetchProfile();
+  }, []);
 
-    useEffect(() => {
-        fetchProfile();
-    },[]);
+  // Fetch the current user's profile from the backend
+  const fetchProfile = async () => {
+    setLoading(true);
 
-    const fetchProfile = async() => {
-        setLoading(true);
-        try{
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) { navigate("/login"); return;}
+    try {
+      const data = await getCurrentUserProfile();
 
-            const { data, error } = await supabase
-                .from("users")
-                .select("*")
-                .eq("id", user.id)
-                .single();
-
-                if (error) throw error;
-                if (data) setProfile(data);
-
-        }catch(err : any){
-            setError("Failed to load profile.");
-        }finally{
-            setLoading(false);
-        }
-    };
-    const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        setPhotoFile(file);
-        setPhotoPreview(URL.createObjectURL(file));
-    };
-    const toggleTag = (tag: string, field: "lifestyle_tags" | "languages_spoken")=>{
-        setProfile((prev)=>{
-            const current = prev[field] || [];
-            const updated = current.includes(tag)
-                ? current.filter((t)=> t !== tag)
-                : [...current,tag];
-            return { ...prev,[field]:updated};
-        });
-    };
-
-    const handleSave = async () => {
-        setSaving(true);
-        setError("");
-        setSuccess("");
-
-        try{
-            let photoUrl = profile.profile_photo;
-
-            //upload new photo if selected
-            if(photoFile){
-                const fileExt = photoFile.name.split(".").pop();
-                const fileName = `${profile.id}.${fileExt}`;
-                const { error: uploadError} = await supabase.storage
-                    .from("profile-photos")
-                    .upload(fileName, photoFile, {upsert: true});
-                    if(!uploadError){
-                        const { data:urlData } = supabase.storage
-                            .from("profile-photos")
-                            .getPublicUrl(fileName);
-                        photoUrl = urlData.publicUrl;
-                    }
-            }
-            const {error : updateError} = await supabase
-                .from("users")
-                .update({
-                    name: profile.name,
-                    university: profile.university,
-                    nationality: profile.nationality,
-                    budget_min: profile.budget_min,
-                    budget_max: profile.budget_max,
-                    lifestyle_tags: profile.lifestyle_tags,
-                    languages_spoken: profile.languages_spoken,
-                    profile_photo: photoUrl,
-                })
-                .eq("id", profile.id);
-
-            if (updateError) throw updateError;
-
-            setProfile((prev) => ({ ...prev,profile_photo:photoUrl}));
-            setSuccess("Profile updated successfully.");
-            setEditing(false);
-            setPhotoFile(null);
-            setPhotoPreview(null);
-        }catch(err:any){
-            setError("Failed to save profile. Please try again.");
-        }finally{
-            setSaving(false);
-        }
-    };
-    const handleLogout = async () => {
-        await supabase.auth.signOut();
+      if (!data) {
         navigate("/login");
-    };
+        return;
+      }
 
-    if (loading){
-        return(
-            <div style={styles.loadingPage}>
-                <p style={styles.loadingText}>Loading your profile...</p>
-            </div>
-        );
+      setProfile(data);
+    } catch (err: any) {
+      console.error("FETCH PROFILE ERROR:", err);
+      setError("Failed to load profile.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle profile photo change
+  const handlePhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    if(!file.type.startsWith("image/")) {
+        setError("Please select a valid image file.");
+        return;
     }
 
-    const avatarSrc = photoPreview || profile.profile_photo;
+    if(file.size > 2 * 1024 * 1024) { //2MB limit
+        setError("Please select an image file smaller than 2MB.");
+        return;
+    }
 
-    return(
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+    setError("");
+  };
+
+  // Handle student ID document change
+  const handleStudentIdChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+
+    if (!file) return;
+
+    const allowedTypes = [
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+        "application/pdf",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+        setError("Student ID must be an image or PDF file.");
+        return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+        setError("Student ID file must be less than 5MB.");
+        return;
+    }
+
+    setStudentIdFile(file);
+    setError("");
+    };
+
+
+  // toggle lifestyle tags and language tags
+  const toggleTag = (
+    tag: string,
+    field: "lifestyle_tags" | "language_spoken"
+  ) => {
+    setProfile((prev) => {
+      const current = prev[field] || [];
+      const updated = current.includes(tag)
+        ? current.filter((t) => t !== tag)
+        : [...current, tag];
+
+      return { ...prev, [field]: updated };
+    });
+  };
+
+  
+  /** Handle saving profile changes:
+   * push button Save Changes
+   * select new profile photo -> upload to bucket profile-photos, get new URL -> update profile_photo in users table with new photo URL
+   * update other profile details
+   * show success message or error message 
+   */
+  const handleSave = async () => {
+    setSaving(true);
+    setError("");
+    setSuccess("");
+
+    try {
+        if(!profile.id){
+            throw new Error("Profile ID is missing. Please login again.");
+        }
+      let photoUrl = profile.profile_photo;
+      let studentIdUrl = profile.student_id_doc;
+      let nextVerifiedStatus = profile.is_verified;
+
+      if (photoFile) {
+        photoUrl = await uploadProfilePhoto(profile.id, photoFile);
+      }
+      if (studentIdFile) {
+        studentIdUrl = await uploadStudentIdCard(profile.id, studentIdFile);
+        nextVerifiedStatus = true; // successfully upload student ID -> verified student
+      }
+
+      // Update user profile with new details
+      await updateUserProfile({
+        id: profile.id,
+        name: profile.name,
+        university: profile.university,
+        nationality: profile.nationality,
+        budget_min: profile.budget_min,
+        budget_max: profile.budget_max,
+        lifestyle_tags: profile.lifestyle_tags,
+        language_spoken: profile.language_spoken,
+        profile_photo: photoUrl,
+        student_id_doc: studentIdUrl,
+        is_verified: nextVerifiedStatus
+      });
+
+      setProfile((prev) => ({ 
+        ...prev, 
+        profile_photo: photoUrl,
+        student_id_doc: studentIdUrl,
+        is_verified: nextVerifiedStatus,
+      }));
+
+      setSuccess("Profile updated successfully.");
+      setEditing(false);
+      setPhotoFile(null);
+      setPhotoPreview(null);
+      setStudentIdFile(null);
+    } catch (err: any) {
+      console.error("SAVE PROFILE ERROR:", err);
+      setError(err.message || "Failed to save profile. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+    // Handle user logout
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+      navigate("/login");
+    } catch (err: any) {
+      setError("Failed to sign out. Please try again.");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={styles.loadingPage}>
+        <p style={styles.loadingText}>Loading your profile...</p>
+      </div>
+    );
+  }
+
+  const avatarSrc = photoPreview || profile.profile_photo;
+
+  return(
         <div style={styles.page}>
             <div style={styles.bgAccent}/>
             {/* Top Navigation */}
@@ -242,7 +268,14 @@ export default function Profile(){
                 </button>
             ) : (
                 <div style={styles.btnRow}>
-                    <button style={styles.cancelBtn} onClick={() => { setEditing(false); setError(""); }}>
+                    <button style={styles.cancelBtn} onClick={() => { 
+                        setEditing(false); 
+                        setError(""); 
+                        setSuccess("");
+                        setPhotoFile(null);
+                        setPhotoPreview(null);
+                        setStudentIdFile(null);
+                        }}>
                     Cancel
                     </button>
                     <button style={styles.saveBtn} onClick={handleSave} disabled={saving}>
@@ -331,8 +364,61 @@ export default function Profile(){
             </div>
             </div>
 
+          {/* Student ID Upload */}
             <div style={styles.divider} />
 
+            <div style={styles.section}>
+            <p style={styles.sectionLabel}>Student Verification</p>
+
+            {profile.is_verified ? (
+                <div style={styles.verifiedInfoBox}>
+                <p style={styles.verifiedText}>
+                    ✓ Student ID uploaded. Verified Student.
+                </p>
+                </div>
+            ) : (
+                <div style={styles.fieldGroup}>
+                <p style={styles.verificationDescription}>
+                    Upload your student ID card or enrollment certificate to verify your student status.
+                </p>
+
+                {profile.student_id_doc && (
+                    <p style={styles.hint}>
+                    Student ID file has already been uploaded and is waiting for verification.
+                    </p>
+                )}
+
+                {editing ? (
+                    <>
+                    <label style={styles.uploadBox}>
+                        <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,application/pdf"
+                        style={{ display: "none" }}
+                        onChange={handleStudentIdChange}
+                        />
+
+                        <span style={styles.uploadText}>
+                        {studentIdFile
+                            ? studentIdFile.name
+                            : "Upload student ID card or enrollment certificate"}
+                        </span>
+                    </label>
+
+                    <p style={styles.hint}>
+                        JPG, PNG, WEBP, or PDF. Max 5MB. Kept private.
+                    </p>
+                    </>
+                ) : (
+                    <p style={styles.hint}>
+                    Click Edit Profile to upload your student ID card.
+                    </p>
+                )}
+                </div>
+            )}
+            </div>
+
+            <div style={styles.divider} />
           {/* Lifestyle Tags */}
             <div style={styles.section}>
             <p style={styles.sectionLabel}>Lifestyle</p>
@@ -363,10 +449,10 @@ export default function Profile(){
                 <p style={styles.sectionLabel}>Languages Spoken</p>
                 <div style={styles.tagsGrid}>
                 {LANGUAGES.map((lang) => {
-                    const active = profile.languages_spoken?.includes(lang);
+                    const active = profile.language_spoken?.includes(lang);
                     return (
                     <button key={lang} disabled={!editing}
-                        onClick={() => toggleTag(lang, "languages_spoken")}
+                        onClick={() => toggleTag(lang, "language_spoken")}
                         style={{
                         ...styles.tagBtn,
                         background: active ? "#1a1a1a" : "transparent",
@@ -386,13 +472,14 @@ export default function Profile(){
         </div>
     );
 }
-const styles: Record<string, React.CSSProperties> = {
+const styles: Record<string, CSSProperties> = {
     page: {
         minHeight: "100vh",
         background: "#fafaf8",
         fontFamily: "'Georgia', serif",
         position: "relative",
-        overflow: "hidden",
+        overflowX: "hidden",
+        overflowY: "auto",
     },
     bgAccent: {
         position: "fixed",
@@ -524,6 +611,52 @@ const styles: Record<string, React.CSSProperties> = {
         fontFamily: "'Georgia', serif",
         letterSpacing: "0.03em",
     },
+
+    uploadBox: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        border: "1.5px dashed #ddd",
+        padding: "16px 20px",
+        cursor: "pointer",
+        transition: "border-color 0.2s ease",
+        borderRadius: 2,
+        marginTop: 8,
+    },
+    verificationDescription: {
+        fontSize: 14,
+        color: "#666",
+        fontFamily: "'Georgia', serif",
+        lineHeight: 1.6,
+        marginBottom: 8,
+    },
+
+    uploadText: {
+        fontSize: 13,
+        color: "#888",
+        fontFamily: "'Georgia', serif",
+    },
+
+    hint: {
+        fontSize: 11,
+        color: "#bbb",
+        fontFamily: "'Georgia', serif",
+        marginTop: 6,
+    },
+
+     verifiedInfoBox: {
+        background: "#f0faf4",
+        border: "1px solid #a8e6c1",
+        padding: "12px 16px",
+        borderRadius: 2,
+    },
+
+    verifiedText: {
+        fontSize: 13,
+        color: "#27ae60",
+        fontFamily: "'Georgia', serif",
+    },
+
     tagsWrap: {
         display: "flex",
         flexWrap: "wrap" as const,
