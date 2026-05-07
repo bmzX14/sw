@@ -48,7 +48,7 @@ export default function Profile() {
       setProfile(data);
     } catch (err: any) {
       console.error("FETCH PROFILE ERROR:", err);
-      setError("Failed to load profile.");
+      setError(err.message || "Failed to load profile.");
     } finally {
       setLoading(false);
     }

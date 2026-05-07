@@ -12,7 +12,7 @@ export default function Register() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  
+
   const [form, setForm] = useState<RegisterForm>({
     name: "",
     email: "",
@@ -29,33 +29,6 @@ export default function Register() {
     setForm({ ...form, [e.target.name]: e.target.value });
     setError("");
   };
-
-  // Handler for handling Student ID file change
-//   const handleStudentIdChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-//     const file = e.target.files?.[0];
-
-//     if (!file) return;
-
-//     const allowedTypes = [
-//         "image/jpeg", 
-//         "image/png", 
-//         "image/webp", 
-//         "application/pdf",
-//     ];
-
-//     if (!allowedTypes.includes(file.type)) {
-//         setError("Student ID must be an image or PDF file.");
-//         return;
-//     }
-
-//     if (file.size > 2 * 1024 * 1024) {
-//         setError("Student ID file must be less than 2MB.");
-//         return;
-//     }
-
-//     setStudentIdFile(file);
-//     setError("");   
-//     };
 
   // Validation for step 1
   const validateStep1 = () => {
@@ -100,7 +73,9 @@ export default function Register() {
 
     try {
       await registerUser(form);
-      navigate("/login");
+      navigate("/login", {
+        state: { successMessage: "Please confirm your email before logging in." },
+      });
     } catch (err: any) {
       setError(err.message || "Something went wrong. Please try again.");
     } finally {

@@ -1,6 +1,5 @@
 import { supabase } from "../lib/supabase";
 import type { RegisterForm, LoginForm } from "../types/user";
-import { createUserProfile } from "./userService";
 
 
 // Function to handle user registration
@@ -8,6 +7,14 @@ export async function registerUser(form: RegisterForm) {
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email: form.email,
     password: form.password,
+    // Pass additional user metadata to Supabase (optional)
+    options: {
+      data: {
+        name: form.name,
+        university: form.university,
+        nationality: form.nationality,
+      },
+    },
   });
 
   if (authError) {
@@ -17,16 +24,6 @@ export async function registerUser(form: RegisterForm) {
   if (!authData.user) {
     throw new Error("Signup failed.");
   }
-
-  await createUserProfile({
-    id: authData.user.id,
-    email: form.email,
-    name: form.name,
-    university: form.university,
-    nationality: form.nationality,
-    student_id_doc: null,
-    is_verified: false,
-  });
 
   return authData.user;
 }

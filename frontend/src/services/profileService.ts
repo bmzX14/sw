@@ -35,17 +35,62 @@ export async function getCurrentUserProfile() {
     return null;
   }
 
-  const { data, error } = await supabase
+  const { data: existingProfile, error: selectError } = await supabase
     .from("users")
     .select("*")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
-  if (error) {
-    throw error;
+  if (selectError) {
+    throw selectError;
   }
 
-  return data as UserProfile;
+  if (existingProfile) {
+    return existingProfile as UserProfile;
+  }
+
+  const { data: profileByEmail, error: emailError } = await supabase
+    .from("users")
+    .select("*")
+    .eq("email", user.email)
+    .maybeSingle();
+
+  if (emailError) {
+    throw emailError;
+  }
+
+  if (profileByEmail) {
+    return profileByEmail as UserProfile;
+  }
+
+  const metadata = user.user_metadata || {};
+
+  const newProfile = {
+    id: user.id,
+    email: user.email ?? "",
+    name: metadata.name ?? "",
+    university: metadata.university ?? "",
+    nationality: metadata.nationality ?? "",
+    budget_min: null,
+    budget_max: null,
+    profile_photo: null,
+    student_id_doc: null,
+    is_verified: false,
+    lifestyle_tags: [],
+    language_spoken: [],
+  };
+
+  const { data: createdProfile, error: insertError } = await supabase
+    .from("users")
+    .insert(newProfile)
+    .select("*")
+    .single();
+
+  if (insertError) {
+    throw insertError;
+  }
+
+  return createdProfile as UserProfile;
 }
 
 
