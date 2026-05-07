@@ -93,8 +93,8 @@ export default function Profile() {
         return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-        setError("Student ID file must be less than 5MB.");
+    if (file.size > 2 * 1024 * 1024) {
+        setError("Student ID file must be less than 2MB.");
         return;
     }
 
