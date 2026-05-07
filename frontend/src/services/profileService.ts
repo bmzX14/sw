@@ -49,20 +49,6 @@ export async function getCurrentUserProfile() {
     return existingProfile as UserProfile;
   }
 
-  const { data: profileByEmail, error: emailError } = await supabase
-    .from("users")
-    .select("*")
-    .eq("email", user.email)
-    .maybeSingle();
-
-  if (emailError) {
-    throw emailError;
-  }
-
-  if (profileByEmail) {
-    return profileByEmail as UserProfile;
-  }
-
   const metadata = user.user_metadata || {};
 
   const newProfile = {
@@ -80,14 +66,14 @@ export async function getCurrentUserProfile() {
     language_spoken: [],
   };
 
-  const { data: createdProfile, error: insertError } = await supabase
+  const { data: createdProfile, error: upsertError } = await supabase
     .from("users")
-    .insert(newProfile)
+    .upsert(newProfile, { onConflict: "id" })
     .select("*")
     .single();
 
-  if (insertError) {
-    throw insertError;
+  if (upsertError) {
+    throw upsertError;
   }
 
   return createdProfile as UserProfile;
