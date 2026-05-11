@@ -6,6 +6,7 @@ import Profile from "./pages/Profile";
 import Browse from "./pages/Browse";
 import PostForm from "./pages/PostForm";
 import PostDetail from "./pages/PostDetail";
+import Chat from "./pages/Chat";
 
 function App() {
   return (
@@ -21,6 +22,8 @@ function App() {
         {/* Main Pages */}
         <Route path="/profile" element={<Profile />} />
         <Route path="/browse" element={<Browse />} />
+        <Route path="/chat" element={<Chat />} />
+        <Route path="/messages" element={<Chat />} />
 
         {/* Post Form - support multiple paths */}
         <Route path="/post-form" element={<PostForm />} />
