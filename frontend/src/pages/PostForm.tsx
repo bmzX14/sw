@@ -29,15 +29,59 @@ type Post = {
   status: "active" | "closed";
 };
 
-const lifestyleOptions = [
-  "Non-smoker",
-  "Smoking allowed",
-  "Quiet lifestyle",
-  "Social lifestyle",
-  "Clean",
-  "Pets allowed",
-  "Late return allowed",
-  "Regular routine",
+const tagGroups = [
+  {
+    title: "Lifestyle",
+    tags: [
+      "Non-smoker",
+      "Smoking allowed",
+      "Early bird",
+      "Night owl",
+      "Regular routine",
+      "Irregular schedule",
+    ],
+  },
+  {
+    title: "Cleanliness",
+    tags: [
+      "Very clean",
+      "Moderate cleanliness",
+      "Shared cleaning",
+      "Does dishes quickly",
+      "Keeps common areas clean",
+    ],
+  },
+  {
+    title: "Noise & Social",
+    tags: [
+      "Quiet lifestyle",
+      "Social lifestyle",
+      "Guest-friendly",
+      "Few guests preferred",
+      "Sleeps early",
+      "Studies at home",
+    ],
+  },
+  {
+    title: "Housing Preference",
+    tags: [
+      "Pets allowed",
+      "No pets",
+      "Short-term available",
+      "Long-term preferred",
+      "Furnished room",
+      "Near public transit",
+    ],
+  },
+  {
+    title: "Personal Habits",
+    tags: [
+      "Cooks often",
+      "Eats out often",
+      "No alcohol at home",
+      "Comfortable with shared items",
+    ],
+  },
 ];
 
 export default function PostForm() {
@@ -313,28 +357,36 @@ export default function PostForm() {
               </div>
             </div>
 
-            <div style={styles.tagsGrid}>
-              {lifestyleOptions.map((tag) => {
-                const active = selectedTags.includes(tag);
+            <div style={styles.tagGroupWrap}>
+              {tagGroups.map((group) => (
+                <div key={group.title} style={styles.tagGroup}>
+                  <p style={styles.tagGroupTitle}>{group.title}</p>
 
-                return (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => toggleTag(tag)}
-                    style={{
-                      ...styles.tagBtn,
-                      background: active ? "#1a1a1a" : "transparent",
-                      color: active ? "#fff" : "#888",
-                      border: active
-                        ? "1.5px solid #1a1a1a"
-                        : "1.5px solid #ddd",
-                    }}
-                  >
-                    {tag}
-                  </button>
-                );
-              })}
+                  <div style={styles.tagsGrid}>
+                    {group.tags.map((tag) => {
+                      const active = selectedTags.includes(tag);
+
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => toggleTag(tag)}
+                          style={{
+                            ...styles.tagBtn,
+                            background: active ? "#1a1a1a" : "transparent",
+                            color: active ? "#fff" : "#888",
+                            border: active
+                              ? "1.5px solid #1a1a1a"
+                              : "1.5px solid #ddd",
+                          }}
+                        >
+                          {tag}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -604,6 +656,22 @@ const styles: Record<string, CSSProperties> = {
     height: 1,
     background: "#f0ede8",
     margin: "28px 0",
+  },
+  tagGroupWrap: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 22,
+    marginTop: 10,
+  },
+  tagGroup: {
+    paddingBottom: 4,
+  },
+  tagGroupTitle: {
+    fontSize: 11,
+    letterSpacing: "0.12em",
+    textTransform: "uppercase",
+    color: "#aaa",
+    margin: "0 0 10px",
   },
   tagsGrid: {
     display: "flex",
