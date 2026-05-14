@@ -1,17 +1,17 @@
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { UNIVERSITIES, NATIONALITIES } from "../lib/registerOptions";
+import { NATIONALITIES, UNIVERSITIES } from "../lib/registerOptions";
 import { registerUser } from "../services/authService";
 
 import type { RegisterForm } from "../types/user";
 
 export default function Register() {
-  const navigate = useNavigate();
+    const navigate = useNavigate();
 
-  const [step, setStep] = useState(1);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+    const [step, setStep] = useState(1);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
 
   const [form, setForm] = useState<RegisterForm>({
     name: "",
@@ -64,8 +64,8 @@ export default function Register() {
     const err = validateStep2();
 
     if (err) {
-      setError(err);
-      return;
+        setError(err);
+        return;
     }
 
     setLoading(true);

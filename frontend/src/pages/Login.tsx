@@ -1,9 +1,6 @@
-import { supabase } from "../lib/supabase";
 import { useState } from "react";
-import type { ChangeEvent, CSSProperties } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { loginUser } from "../services/authService";
-import type { LoginForm } from "../types/user";
+import { supabase } from "../lib/supabase";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -50,7 +47,7 @@ export default function Login() {
       localStorage.setItem("access_token", data.session.access_token);
       localStorage.setItem("user", JSON.stringify(data.user));
 
-      navigate("/");
+      navigate("/profile");
     } catch (err: any) {
       setError("Email or password is incorrect.");
     } finally {
