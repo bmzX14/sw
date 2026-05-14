@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+<<<<<<< HEAD
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -23,3 +24,11 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
     persistSession: false,
 },
 });
+=======
+
+// This client has elevated permissions and should only be used in server-side code
+export const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+>>>>>>> 1f7cc96bd6623e5f0bed352728cebba2362e4b91

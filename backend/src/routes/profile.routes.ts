@@ -6,7 +6,7 @@ import { requireAuth } from "../middleware/auth.middleware";
 
 const router = Router();
 
-//get current user's profile 
+//get current user's profile
 
 router.get("/profile", requireAuth, getMyProfile);
 
