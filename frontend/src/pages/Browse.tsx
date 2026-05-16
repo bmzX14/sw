@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import axios from "axios";
 import type { CSSProperties } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 type PostType =
@@ -107,11 +108,44 @@ export default function Browse() {
   const [maxBudget, setMaxBudget] = useState("");
 
   useEffect(() => {
-    const saved = localStorage.getItem("roomies_posts");
-    const savedPosts: Post[] = saved ? JSON.parse(saved) : [];
-    setPosts([...savedPosts, ...samplePosts]);
+    fetchPosts();
   }, []);
+  const fetchPosts = async () => {
+  try {
+    const { data } = await axios.get("http://localhost:8000/api/posts");
+    console.log("API response:", data);
+    console.log("Number of posts:", data.length);
+    // Map DB fields to UI fields
+    const mapped: Post[] = data.map((p: any) => ({
+      id: p.id,
+      postType: p.post_type === "room_available" ? "Room Available"
+        : p.post_type === "looking_for_room" ? "Looking for Room"
+        : p.post_type === "sublet" ? "Short-term Rental"
+        : "Contract Transfer",
+      title: p.description_en?.slice(0, 60) || "Room Post",
+      region: p.district || "",
+      address: p.full_address || "",
+      rent: p.monthly_rent || 0,
+      deposit: p.deposit || 0,
+      moveInDate: p.available_from || "",
+      genderPreference: p.gender_preference || "No Preference",
+      lifestyleTags: p.lifestyle_tags || [],
+      descriptionKo: p.description_ko || "",
+      descriptionEn: p.description_en || "",
+      photos: p.photos || [],
+      writerName: p.users?.name || "Student",
+      university: p.users?.university || "",
+      verified: p.users?.is_verified || false,
+      createdAt: new Date(p.created_at).toLocaleDateString(),
+      status: p.status || "active",
+    }));
 
+    setPosts(mapped);
+  } catch (err) {
+    console.error("Failed to fetch posts", err);
+    setPosts(samplePosts);
+  }
+};
   const regions = useMemo(() => {
     const uniqueRegions = Array.from(new Set(posts.map((post) => post.region)));
     return ["All", ...uniqueRegions];
@@ -135,13 +169,22 @@ export default function Browse() {
         <p style={styles.brand}>roomies</p>
 
         <div style={styles.navRight}>
-          <button style={styles.navLink} onClick={() => navigate("/browse")}>
-            Browse
-          </button>
-          <button style={styles.navLink} onClick={() => navigate("/profile")}>
-            Profile
-          </button>
-        </div>
+  <button style={styles.navLink} onClick={() => navigate("/browse")}>
+    Browse
+  </button>
+  <button style={styles.navLink} onClick={() => navigate("/matches")}>
+    Matches
+  </button>
+  <button style={styles.navLink} onClick={() => navigate("/chat")}>
+    Chat
+  </button>
+  <button style={styles.navLink} onClick={() => navigate("/review")}>
+    Review
+  </button>
+  <button style={styles.navLink} onClick={() => navigate("/profile")}>
+    Profile
+  </button>
+</div>
       </nav>
 
       <main style={styles.container}>

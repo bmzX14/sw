@@ -8,7 +8,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
 //Base URL for Express backend API
-const API = "http://localhost:5000/api";
+const API = "http://localhost:8000/api";
 
 //Helper function to get JWT token from supabase session
 const getToken = async () => {
@@ -186,7 +186,9 @@ export default function Matches() {
         <p style={styles.brand}>roomie</p>
         <div style={styles.navRight}>
             <button style={styles.navLink} onClick={() => navigate("/browse")}>Browse</button>
+            <button style={styles.navLink} onClick={() => navigate("/matches")}>Matches</button>
             <button style={styles.navLink} onClick={() => navigate("/chat")}>Chat</button>
+            <button style={styles.navLink} onClick={() => navigate("/review")}>Review</button>
             <button style={styles.navLink} onClick={() => navigate("/profile")}>Profile</button>
             </div>
             </nav>

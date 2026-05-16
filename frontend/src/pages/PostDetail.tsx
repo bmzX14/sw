@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 type PostType =
@@ -148,12 +148,11 @@ export default function PostDetail() {
         <p style={styles.brand}>roomies</p>
 
         <div style={styles.navRight}>
-          <button style={styles.navLink} onClick={() => navigate("/browse")}>
-            Browse
-          </button>
-          <button style={styles.navLink} onClick={() => navigate("/profile")}>
-            Profile
-          </button>
+           <button style={styles.navLink} onClick={() => navigate("/browse")}>Browse</button>
+  <button style={styles.navLink} onClick={() => navigate("/matches")}>Matches</button>
+  <button style={styles.navLink} onClick={() => navigate("/chat")}>Chat</button>
+  <button style={styles.navLink} onClick={() => navigate("/review")}>Review</button>
+  <button style={styles.navLink} onClick={() => navigate("/profile")}>Profile</button>
         </div>
       </nav>
 

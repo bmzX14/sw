@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
-const API = "http://localhost:5000/api";
+const API = "http://localhost:8000/api";
 
 //Helper: Get JWT token from Supabase session ──
 const getToken = async () => {
@@ -63,7 +63,8 @@ export default function Chat() {
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
-
+    const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+    const currentUserRef = useRef<any>(null);
   // Ref for auto-scrolling to latest message
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -74,11 +75,56 @@ export default function Chat() {
 
   // Fetch messages when conversation changes ──
     useEffect(() => {
-    if (selectedConversationId) {
-        fetchMessages(selectedConversationId);
-        subscribeToMessages(selectedConversationId);
-    }
-    }, [selectedConversationId]);
+    if (!selectedConversationId) return;
+    if (!currentUserRef.current) return;
+
+    fetchMessages(selectedConversationId);
+
+  // Create and subscribe to channel
+  const channel = supabase
+    .channel(`messages:${selectedConversationId}`)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'messages',
+      filter: `match_id=eq.${selectedConversationId}`
+    }, (payload) => {
+      const newMsg = payload.new as any;
+  const formatted: Message = {
+    id: newMsg.id,
+    conversationId: selectedConversationId,
+    sender: newMsg.sender_id === currentUserRef.current?.id ? "me" : "opponent", // ← fix
+    senderName: newMsg.sender_id === currentUserRef.current?.id ? "Me" : "Roomie", // ← fix
+    text: newMsg.content,
+    createdAt: new Date(newMsg.created_at).toLocaleTimeString([], {
+      hour: "2-digit", minute: "2-digit"
+    }),
+    sender_id: newMsg.sender_id,
+      };
+
+      setMessages(prev => {
+        if (prev.find(m => m.id === formatted.id)) return prev;
+        return [...prev, formatted];
+      });
+
+      setConversations(prev => prev.map(c =>
+        c.id === selectedConversationId ? {
+          ...c,
+          lastMessage: newMsg.content,
+          updatedAt: formatted.createdAt,
+        } : c
+      ));
+    })
+    .subscribe();
+
+  // Clear unread count
+  setUnreadCounts(prev => ({ ...prev, [selectedConversationId]: 0 }));
+
+  // ← Cleanup: remove channel when conversation changes
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, [selectedConversationId, currentUser]);
 
   // Auto scroll to latest message 
     useEffect(() => {
@@ -90,11 +136,13 @@ export default function Chat() {
 
   // Initialize: get current user and fetch all accepted matches
     const initChat = async () => {
-    const user = await getCurrentUser();
-    if (!user) { navigate("/login"); return; }
-    setCurrentUser(user);
-    await fetchConversations(user);
-    setLoading(false);
+        const user = await getCurrentUser();
+        if (!user) { navigate("/login"); return; }
+        setCurrentUser(user);
+        currentUserRef.current = user; 
+        await fetchConversations(user);
+        setLoading(false);
+         // subscription will auto-trigger because currentUser state changed
     };
 
   // Fetch accepted matches and convert to conversation format
@@ -228,38 +276,55 @@ const fetchConversations = async (user: any) => {
 
     // Send message to Express backend
     const sendMessage = async (e: FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        const trimmedText = inputValue.trim();
-        if (!trimmedText || !selectedConversationId || sending) return;
+  e.preventDefault();
+  const trimmedText = inputValue.trim();
+  if (!trimmedText || !selectedConversationId || sending) return;
 
-        setSending(true);
-        setInputValue("");
+  setSending(true);
+  setInputValue("");
 
-        try {
-        const token = await getToken();
-        await axios.post(
-            `${API}/messages/${selectedConversationId}`,
-            { content: trimmedText },
-            { headers: { Authorization: `Bearer ${token}` } }
-        );
-        } catch (err) {
-        console.error("Failed to send message", err);
-        setInputValue(trimmedText);
-        } finally {
-        setSending(false);
-        }
-    };
+  // ← Optimistically add message to UI immediately
+  const tempMessage: Message = {
+    id: `temp-${Date.now()}`,
+    conversationId: selectedConversationId,
+    sender: "me",
+    senderName: "Me",
+    text: trimmedText,
+    createdAt: new Date().toLocaleTimeString([], {
+      hour: "2-digit", minute: "2-digit"
+    }),
+    sender_id: currentUserRef.current?.id,
+  };
+  setMessages(prev => [...prev, tempMessage]);
 
-    // ── Computed values ──
+  try {
+    const token = await getToken();
+    await axios.post(
+      `${API}/messages/${selectedConversationId}`,
+      { content: trimmedText },
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    // Supabase Realtime will add the real message
+    // Remove temp message when real one arrives via deduplication
+  } catch (err) {
+    console.error("Failed to send message", err);
+    setInputValue(trimmedText);
+    // Remove temp message if failed
+    setMessages(prev => prev.filter(m => m.id !== tempMessage.id));
+  } finally {
+    setSending(false);
+  }
+};
+
+    // Computed values 
     const selectedConversation = conversations.find(c => c.id === selectedConversationId);
     const currentMessages = useMemo(() => {
         return messages.filter(m => m.conversationId === selectedConversationId);
     }, [messages, selectedConversationId]);
     const totalUnreadCount = conversations.reduce((sum, c) => sum + c.unreadCount, 0);
 
-    // ============================================================
     // Render
-    // ============================================================
+  
 
     if (loading) {
         return (
@@ -275,23 +340,26 @@ const fetchConversations = async (user: any) => {
         <div style={styles.page}>
         <div style={styles.bgAccent} />
 
-        {/* ── Navigation ── */}
+        {/* Navigation  */}
         <nav style={styles.nav}>
             <p style={styles.brand}>roomies</p>
             <div style={styles.navRight}>
             <button style={styles.navLink} onClick={() => navigate("/browse")}>Browse</button>
+            <button style={styles.navLink} onClick={() => navigate("/matches")}>Matches</button>
             <button style={styles.navLinkActive} onClick={() => navigate("/chat")}>
                 Chat
                 {totalUnreadCount > 0 && (
                 <span style={styles.navBadge}>{totalUnreadCount}</span>
                 )}
             </button>
+            
+            <button style={styles.navLink} onClick={() => navigate("/review")}>Review</button>
             <button style={styles.navLink} onClick={() => navigate("/profile")}>Profile</button>
-            </div>
+</div>
         </nav>
 
         <main style={styles.container}>
-            {/* ── Page Header ── */}
+            {/* Page Header*/}
             <section style={styles.header}>
             <div>
                 <p style={styles.kicker}>MESSAGING</p>
@@ -360,7 +428,7 @@ const fetchConversations = async (user: any) => {
                 )}
             </aside>
 
-            {/* ── Thread ── */}
+            {/* Thread */}
             <section style={styles.thread}>
                 {selectedConversation ? (
                 <>

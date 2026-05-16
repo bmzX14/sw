@@ -7,7 +7,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
-const API = "http://localhost:5000/api";
+const API = "http://localhost:8000/api";
 
 // Helper: Get JWT token 
 const getToken = async () => {
@@ -194,8 +194,11 @@ export default function PostForm() {
       <nav style={styles.nav}>
         <p style={styles.brand}>roomies</p>
         <div style={styles.navRight}>
-          <button style={styles.navLink} onClick={() => navigate("/browse")}>Browse</button>
-          <button style={styles.navLink} onClick={() => navigate("/profile")}>Profile</button>
+           <button style={styles.navLink} onClick={() => navigate("/browse")}>Browse</button>
+  <button style={styles.navLink} onClick={() => navigate("/matches")}>Matches</button>
+  <button style={styles.navLink} onClick={() => navigate("/chat")}>Chat</button>
+  <button style={styles.navLink} onClick={() => navigate("/review")}>Review</button>
+  <button style={styles.navLink} onClick={() => navigate("/profile")}>Profile</button>
         </div>
       </nav>
 

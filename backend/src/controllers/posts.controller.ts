@@ -14,7 +14,7 @@ export async function getAllPosts(req: Request, res: Response) {
         let query = supabaseAdmin
             .from("posts")
             .select(`
-                id, post_type, disctrict, monthly_rent, deposit, 
+                id, post_type, district, monthly_rent, deposit, 
                 deposit_negotiable, room_type, furnished,
                 available_from, available_until, gender_preference,
                 lifestyle_tags, description_en, description_ko,
@@ -28,7 +28,7 @@ export async function getAllPosts(req: Request, res: Response) {
 
         //Apply filters if provided
         if (type)  query = query.eq("post_type", type as string);
-        if (district) query = query.eq("disctrict", district as string);
+        if (district) query = query.eq("district", district as string);
         if (minRent) query = query.gte("monthly_rent", Number(minRent));
         if (maxRent) query = query.lte("monthly_rent", Number(maxRent));
         if (gender) query = query.eq("gender_preference", gender as string);

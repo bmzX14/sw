@@ -193,7 +193,7 @@ export async function getIncomingMatches( req: AuthenticatedRequest, res: Respon
                     deposit,
                     status
                 ),
-                requster:users!requester_id(
+                requester:users!requester_id(
                     id,
                     name,
                     profile_photo,

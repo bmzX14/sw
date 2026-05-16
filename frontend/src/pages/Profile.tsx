@@ -1,16 +1,16 @@
-import { useEffect, useState } from "react";
 import type { ChangeEvent, CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-import { UNIVERSITIES, NATIONALITIES } from "../lib/registerOptions";
-import { LIFESTYLE_TAGS, LANGUAGES } from "../lib/profileOptions";
+import { LANGUAGES, LIFESTYLE_TAGS } from "../lib/profileOptions";
+import { NATIONALITIES, UNIVERSITIES } from "../lib/registerOptions";
 import { logoutUser } from "../services/authService";
 import {
-  getCurrentUserProfile,
-  getEmptyProfile,
-  updateUserProfile,
-  uploadProfilePhoto,
-  uploadStudentIdCard,
+    getCurrentUserProfile,
+    getEmptyProfile,
+    updateUserProfile,
+    uploadProfilePhoto,
+    uploadStudentIdCard,
 } from "../services/profileService";
 import type { UserProfile } from "../types/user";
 
@@ -208,8 +208,11 @@ export default function Profile() {
             <nav style={styles.nav}>
                 <p style={styles.brand}>roomies</p>
                 <div style={styles.navRight}>
-                    <button style={styles.navLink} onClick={()=> navigate("/browse")}>Browse</button>
-                    <button style={styles.navLink} onClick={handleLogout}>Sign Out</button>
+                    <button style={styles.navLink} onClick={() => navigate("/browse")}>Browse</button>
+                    <button style={styles.navLink} onClick={() => navigate("/matches")}>Matches</button>
+                    <button style={styles.navLink} onClick={() => navigate("/chat")}>Chat</button>
+                    <button style={styles.navLink} onClick={() => navigate("/review")}>Review</button>
+                    <button style={styles.navLink} onClick={handleLogout}>Sign out</button>
                 </div>
             </nav>
             <div style={styles.container}>
