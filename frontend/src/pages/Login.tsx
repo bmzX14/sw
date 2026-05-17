@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
+import { loginUser } from "../services/authService";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -35,21 +35,10 @@ export default function Login() {
     setError("");
 
     try {
-      const { data, error: loginError } =
-        await supabase.auth.signInWithPassword({
-          email: form.email,
-          password: form.password,
-        });
-
-      if (loginError) throw loginError;
-      if (!data.session) throw new Error("Login failed.");
-
-      localStorage.setItem("access_token", data.session.access_token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-
+      await loginUser(form);
       navigate("/profile");
     } catch (err: any) {
-      setError("Email or password is incorrect.");
+      setError(err.response?.data?.message || "Email or password is incorrect.");
     } finally {
       setLoading(false);
     }

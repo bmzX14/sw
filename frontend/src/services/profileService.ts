@@ -1,5 +1,19 @@
+import axios from "axios";
+import { API } from "../lib/api";
 import { supabase } from "../lib/supabase";
 import type { UpdateUserProfileInput, UserProfile } from "../types/user";
+
+async function getAuthHeaders() {
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session?.access_token) {
+    throw new Error("Please login again.");
+  }
+
+  return {
+    Authorization: `Bearer ${session.access_token}`,
+  };
+}
 
 // Function to get an empty profile object
 export function getEmptyProfile(): UserProfile {
@@ -22,61 +36,9 @@ export function getEmptyProfile(): UserProfile {
 
 // Function to get the current user's profile
 export async function getCurrentUserProfile() {
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-
-  if (authError) {
-    throw authError;
-  }
-
-  if (!user) {
-    return null;
-  }
-
-  const { data: existingProfile, error: selectError } = await supabase
-    .from("users")
-    .select("*")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (selectError) {
-    throw selectError;
-  }
-
-  if (existingProfile) {
-    return existingProfile as UserProfile;
-  }
-
-  const metadata = user.user_metadata || {};
-
-  const newProfile = {
-    id: user.id,
-    email: user.email ?? "",
-    name: metadata.name ?? "",
-    university: metadata.university ?? "",
-    nationality: metadata.nationality ?? "",
-    budget_min: null,
-    budget_max: null,
-    profile_photo: null,
-    student_id_doc: null,
-    is_verified: false,
-    lifestyle_tags: [],
-    language_spoken: [],
-  };
-
-  const { data: createdProfile, error: upsertError } = await supabase
-    .from("users")
-    .upsert(newProfile, { onConflict: "id" })
-    .select("*")
-    .single();
-
-  if (upsertError) {
-    throw upsertError;
-  }
-
-  return createdProfile as UserProfile;
+  const headers = await getAuthHeaders();
+  const { data } = await axios.get(`${API}/users/profile`, { headers });
+  return data as UserProfile;
 }
 
 
@@ -140,15 +102,9 @@ export async function uploadStudentIdCard(userId: string, file: File) {
 
 // Function to update user profile
 export async function updateUserProfile(input: UpdateUserProfileInput) {
-  const { id, ...updateData } = input;
-
-  const { error } = await supabase
-    .from("users")
-    .update(updateData)
-    .eq("id", id);
-
-  if (error) {
-    throw error;
-  }
+  const { id: _id, ...updateData } = input;
+  const headers = await getAuthHeaders();
+  const { data } = await axios.put(`${API}/users/profile`, updateData, { headers });
+  return data as UserProfile;
 }
 

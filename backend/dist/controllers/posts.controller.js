@@ -1,17 +1,20 @@
-import { Request, Response } from "express";
-import { supabaseAdmin } from "../lib/supabaseAdmin";
-import { AuthenticatedRequest } from "../middleware/auth.middleware";
-
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.getAllPosts = getAllPosts;
+exports.getPostById = getPostById;
+exports.getPostForEdit = getPostForEdit;
+exports.createPost = createPost;
+exports.updatePost = updatePost;
+exports.deletePost = deletePost;
+const supabaseAdmin_1 = require("../lib/supabaseAdmin");
 //handles all post CRUD operations
 // full address is hidden until match is accepted
-
 //GET /api/posts
 //get all active post with optional filters
-export async function getAllPosts(req: Request, res: Response) {
+async function getAllPosts(req, res) {
     const { type, district, minRent, maxRent, gender } = req.query;
-
-    try{
-        let query = supabaseAdmin
+    try {
+        let query = supabaseAdmin_1.supabaseAdmin
             .from("posts")
             .select(`
                 id,
@@ -40,31 +43,33 @@ export async function getAllPosts(req: Request, res: Response) {
                 `)
             .eq("status", "active")
             .order("created_at", { ascending: false });
-
         //Apply filters if provided
-        if (type)  query = query.eq("post_type", type as string);
-        if (district) query = query.eq("district", district as string);
-        if (minRent) query = query.gte("monthly_rent", Number(minRent));
-        if (maxRent) query = query.lte("monthly_rent", Number(maxRent));
-        if (gender) query = query.eq("gender_preference", gender as string);
-
-        const { data, error} = await query;
-    
-        if (error) throw error;
-
+        if (type)
+            query = query.eq("post_type", type);
+        if (district)
+            query = query.eq("district", district);
+        if (minRent)
+            query = query.gte("monthly_rent", Number(minRent));
+        if (maxRent)
+            query = query.lte("monthly_rent", Number(maxRent));
+        if (gender)
+            query = query.eq("gender_preference", gender);
+        const { data, error } = await query;
+        if (error)
+            throw error;
         //never return full_address in browse - only district
         return res.json(data);
-    }catch (error: any) {
-        return res.status(400).json({ message: error.message || "Failed to fetch posts." });
-        }
     }
+    catch (error) {
+        return res.status(400).json({ message: error.message || "Failed to fetch posts." });
+    }
+}
 //GET /api/posts/:id
 //Get a single post - hide full address unless matched
-export async function getPostById(req: Request, res: Response) {
+async function getPostById(req, res) {
     const { id } = req.params;
-
-    try{
-        const { data: post, error} = await supabaseAdmin
+    try {
+        const { data: post, error } = await supabaseAdmin_1.supabaseAdmin
             .from("posts")
             .select(`
                 *,
@@ -80,155 +85,123 @@ export async function getPostById(req: Request, res: Response) {
             `)
             .eq("id", id)
             .single();
-
         if (error || !post) {
             return res.status(404).json({ message: "Post not found." });
         }
-
         //hide full address by default
         const { full_address, ...safePost } = post;
-
         return res.json(safePost);
-    }catch (error: any) {
+    }
+    catch (error) {
         return res.status(500).json({ message: error.message || "Failed to fetch post." });
     }
 }
-
 //GET /api/posts/:id/edit
 //Get a post for editing - only the owner can read private fields
-export async function getPostForEdit(req: AuthenticatedRequest, res: Response) {
-    const userId = req.user!.id;
+async function getPostForEdit(req, res) {
+    const userId = req.user.id;
     const { id } = req.params;
-
     try {
-        const { data, error } = await supabaseAdmin
+        const { data, error } = await supabaseAdmin_1.supabaseAdmin
             .from("posts")
             .select("*")
             .eq("id", id)
             .eq("user_id", userId)
             .single();
-
         if (error || !data) {
             return res.status(404).json({ message: "Post not found or not authorized." });
         }
-
         return res.json(data);
-    } catch (error: any) {
+    }
+    catch (error) {
         return res.status(500).json({ message: error.message || "Failed to fetch post for editing." });
     }
 }
-
 // POST /api/posts
 //create a new post( auth required)
-export async function createPost(req: AuthenticatedRequest, res: Response) {
-    const userId = req.user!.id;
-    const {
-        post_type, 
-        district, 
-        full_address, 
-        near_university,
-        monthly_rent, 
-        deposit, 
-        deposit_negotiable, 
-        room_type,
-        furnished, 
-        available_from, 
-        available_until,
-        gender_preference, 
-        lifestyle_tags, 
-        description_en, 
-        description_ko, 
-        photos,
-    } = req.body;
-
+async function createPost(req, res) {
+    const userId = req.user.id;
+    const { post_type, district, full_address, near_university, monthly_rent, deposit, deposit_negotiable, room_type, furnished, available_from, available_until, gender_preference, lifestyle_tags, description_en, description_ko, photos, } = req.body;
     //validate required fields
     if (!post_type || !district || !monthly_rent) {
-        return res.status(400).json({ 
+        return res.status(400).json({
             message: "Post type, district and monthly rent are required."
         });
     }
-    try{
-        const { data, error } = await supabaseAdmin
+    try {
+        const { data, error } = await supabaseAdmin_1.supabaseAdmin
             .from("posts")
             .insert({
-                user_id: userId,
-                post_type, 
-                district, 
-                full_address,
-                near_university,
-                monthly_rent, 
-                deposit, 
-                deposit_negotiable, 
-                room_type,
-                furnished, 
-                available_from, 
-                available_until,
-                gender_preference, 
-                lifestyle_tags, 
-                description_en, 
-                description_ko, 
-                photos,
-                status: "active",
-            })
+            user_id: userId,
+            post_type,
+            district,
+            full_address,
+            near_university,
+            monthly_rent,
+            deposit,
+            deposit_negotiable,
+            room_type,
+            furnished,
+            available_from,
+            available_until,
+            gender_preference,
+            lifestyle_tags,
+            description_en,
+            description_ko,
+            photos,
+            status: "active",
+        })
             .select("*")
             .single();
-
-        if (error) throw error;
-
+        if (error)
+            throw error;
         return res.status(201).json(data);
-        }catch (error: any) {
-            return res.status(500).json({ message: error.message || "Failed to create post." });
-        }
     }
-
+    catch (error) {
+        return res.status(500).json({ message: error.message || "Failed to create post." });
+    }
+}
 //PUT /api/posts/:id
 //update a post - only owner can update
-export async function updatePost(req: AuthenticatedRequest, res: Response) {
-    const userId = req.user!.id;
+async function updatePost(req, res) {
+    const userId = req.user.id;
     const { id } = req.params;
-    
-    try{
-        const { data, error} = await supabaseAdmin
+    try {
+        const { data, error } = await supabaseAdmin_1.supabaseAdmin
             .from("posts")
             .update({ ...req.body })
             .eq("id", id)
             .eq("user_id", userId) // ensure only owner can update
             .select("*")
             .single();
-
         if (error || !data) {
             return res.status(404).json({ message: "Post not found or not authorized." });
         }
-
         return res.json(data);
-    }catch (error: any) {
+    }
+    catch (error) {
         return res.status(500).json({ message: error.message || "Failed to update post." });
-
     }
 }
-
 //DELETE /api/posts/:id
 //delete a post - only owner can delete
-export async function deletePost(req: AuthenticatedRequest, res: Response) {
-    const userId = req.user!.id;
+async function deletePost(req, res) {
+    const userId = req.user.id;
     const { id } = req.params;
-
-    try{
-        const { data, error} = await supabaseAdmin
+    try {
+        const { data, error } = await supabaseAdmin_1.supabaseAdmin
             .from("posts")
             .delete()
             .eq("id", id)
             .eq("user_id", userId) // ensure only owner can delete
             .select("id")
             .single();
-
         if (error || !data) {
             return res.status(404).json({ message: "Post not found or not authorized." });
         }
-
         return res.json({ message: "Post deleted successfully." });
-    }catch (error: any) {
+    }
+    catch (error) {
         return res.status(500).json({ message: error.message || "Failed to delete post." });
-    } 
+    }
 }
-    

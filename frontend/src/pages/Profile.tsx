@@ -1,5 +1,5 @@
 import type { ChangeEvent, CSSProperties } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { LANGUAGES, LIFESTYLE_TAGS } from "../lib/profileOptions";
@@ -29,12 +29,8 @@ export default function Profile() {
 
   const [profile, setProfile] = useState<UserProfile>(getEmptyProfile());
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
-
   // Fetch the current user's profile from the backend
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     setLoading(true);
 
     try {
@@ -52,7 +48,11 @@ export default function Profile() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [navigate]);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   // Handle profile photo change
   const handlePhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -228,7 +228,7 @@ export default function Profile() {
                         )}
                         {editing && (
                             <label style={styles.photoUploadBtn}>
-                                <input type="file" accept="image/*"
+                                <input aria-label="Profile photo" type="file" accept="image/*"
                                 style={{ display: "none" }} onChange={handlePhotoChange} />
                                 Change photo
                             </label>
@@ -298,7 +298,7 @@ export default function Profile() {
                 <div style={styles.fieldGroup}>
                 <label style={styles.label}>Full Name</label>
                 {editing ? (
-                    <input style={styles.input} value={profile.name}
+                    <input aria-label="Full Name" style={styles.input} value={profile.name}
                     onChange={(e) => setProfile({ ...profile, name: e.target.value })} />
                 ) : (
                     <p style={styles.value}>{profile.name || "—"}</p>
@@ -308,7 +308,7 @@ export default function Profile() {
                 <div style={styles.fieldGroup}>
                     <label style={styles.label}>University</label>
                 {editing ? (
-                    <select style={styles.select} value={profile.university}
+                    <select aria-label="University" style={styles.select} value={profile.university}
                     onChange={(e) => setProfile({ ...profile, university: e.target.value })}>
                     <option value="">Select university</option>
                     {UNIVERSITIES.map(u => <option key={u} value={u}>{u}</option>)}
@@ -321,7 +321,7 @@ export default function Profile() {
                 <div style={styles.fieldGroup}>
                 <label style={styles.label}>Nationality</label>
                 {editing ? (
-                    <select style={styles.select} value={profile.nationality}
+                    <select aria-label="Nationality" style={styles.select} value={profile.nationality}
                     onChange={(e) => setProfile({ ...profile, nationality: e.target.value })}>
                     <option value="">Select nationality</option>
                     {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
@@ -342,7 +342,7 @@ export default function Profile() {
                 <div style={styles.fieldGroup}>
                 <label style={styles.label}>Minimum</label>
                 {editing ? (
-                    <input style={styles.input} type="number" placeholder="e.g. 300000"
+                    <input aria-label="Minimum Budget" style={styles.input} type="number" placeholder="e.g. 300000"
                     value={profile.budget_min || ""}
                     onChange={(e) => setProfile({ ...profile, budget_min: Number(e.target.value) })} />
                 ) : (
@@ -355,7 +355,7 @@ export default function Profile() {
                 <div style={styles.fieldGroup}>
                 <label style={styles.label}>Maximum</label>
                 {editing ? (
-                    <input style={styles.input} type="number" placeholder="e.g. 700000"
+                    <input aria-label="Maximum Budget" style={styles.input} type="number" placeholder="e.g. 700000"
                     value={profile.budget_max || ""}
                     onChange={(e) => setProfile({ ...profile, budget_max: Number(e.target.value) })} />
                 ) : (
@@ -394,8 +394,7 @@ export default function Profile() {
                 {editing ? (
                     <>
                     <label style={styles.uploadBox}>
-                        <input
-                        type="file"
+                        <input aria-label="Student ID document" type="file"
                         accept="image/jpeg,image/png,image/webp,application/pdf"
                         style={{ display: "none" }}
                         onChange={handleStudentIdChange}

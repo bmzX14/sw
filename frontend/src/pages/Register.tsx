@@ -12,6 +12,7 @@ export default function Register() {
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
 
   const [form, setForm] = useState<RegisterForm>({
     name: "",
@@ -28,6 +29,7 @@ export default function Register() {
   ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
     setError("");
+    setSuccess("");
   };
 
   // Validation for step 1
@@ -53,6 +55,7 @@ export default function Register() {
 
     if (err) {
       setError(err);
+      setSuccess("");
       return;
     }
 
@@ -65,19 +68,20 @@ export default function Register() {
 
     if (err) {
         setError(err);
+        setSuccess("");
         return;
     }
 
     setLoading(true);
     setError("");
+    setSuccess("");
 
     try {
       await registerUser(form);
-      navigate("/login", {
-        state: { successMessage: "Please confirm your email before logging in." },
-      });
+      setSuccess("Registration successful. Please check your email to verify your account before logging in.");
     } catch (err: any) {
-      setError(err.message || "Something went wrong. Please try again.");
+      setError(err.response?.data?.message || err.message || "Something went wrong. Please try again.");
+      setSuccess("");
     } finally {
       setLoading(false);
     }
@@ -134,6 +138,12 @@ export default function Register() {
                     {error}
                 </div>
                 )}
+
+                {success && (
+                <div style={styles.successBox}>
+                    {success}
+                </div>
+                )}
     
                 {step === 1 && (
                 <div style={styles.fields}>
@@ -156,7 +166,7 @@ export default function Register() {
                 <div style={styles.fields}>
                     <div style={styles.fieldGroup}>
                     <label style={styles.label}>University</label>
-                    <select name="university" value={form.university}
+                    <select aria-label="University" name="university" value={form.university}
                         onChange={handleChange} style={styles.select}>
                         <option value="">Select your university</option>
                         {UNIVERSITIES.map(u => <option key={u} value={u}>{u}</option>)}
@@ -165,7 +175,7 @@ export default function Register() {
     
                     <div style={styles.fieldGroup}>
                     <label style={styles.label}>Nationality</label>
-                    <select name="nationality" value={form.nationality}
+                    <select aria-label="Nationality" name="nationality" value={form.nationality}
                         onChange={handleChange} style={styles.select}>
                         <option value="">Select your nationality</option>
                         {NATIONALITIES.map(n => <option key={n} value={n}>{n}</option>)}
@@ -177,7 +187,7 @@ export default function Register() {
                         Student ID <span style={styles.optional}>(optional but recommended)</span>
                     </label>
                     <label style={styles.uploadBox}>
-                        <input type="file" accept="image/*,.pdf"
+                        <input aria-label="Student ID document" type="file" accept="image/*,.pdf"
                         style={{ display: "none" }}
                         onChange={handleStudentIdChange}
                         />
@@ -220,7 +230,7 @@ function Field({ label, name, type, value, onChange, placeholder }: {
     return (
         <div style={styles.fieldGroup}>
         <label style={styles.label}>{label}</label>
-        <input name={name} type={type} value={value}
+        <input aria-label={label} name={name} type={type} value={value}
             onChange={onChange} placeholder={placeholder} style={styles.input} />
         </div>
     );
@@ -354,6 +364,16 @@ const styles: Record<string, React.CSSProperties>={
         background: "#fff5f5",
         border: "1px solid #fecaca",
         color: "#c0392b",
+        padding: "12px 16px",
+        borderRadius: 2,
+        fontSize: 13,
+        marginBottom: 20,
+        fontFamily: "'Georgia', serif",
+    },
+    successBox: {
+        background: "#f0faf4",
+        border: "1px solid #a8e6c1",
+        color: "#1f8a4c",
         padding: "12px 16px",
         borderRadius: 2,
         fontSize: 13,

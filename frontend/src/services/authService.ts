@@ -1,49 +1,44 @@
+import axios from "axios";
+import { API } from "../lib/api";
 import { supabase } from "../lib/supabase";
 import type { RegisterForm, LoginForm } from "../types/user";
 
 
 // Function to handle user registration
 export async function registerUser(form: RegisterForm) {
-  const { data: authData, error: authError } = await supabase.auth.signUp({
+  const { data } = await axios.post(`${API}/auth/register`, {
+    name: form.name,
     email: form.email,
     password: form.password,
-    // Pass additional user metadata to Supabase (optional)
-    options: {
-      data: {
-        name: form.name,
-        university: form.university,
-        nationality: form.nationality,
-      },
-    },
+    university: form.university,
+    nationality: form.nationality,
   });
 
-  if (authError) {
-    throw authError;
-  }
-
-  if (!authData.user) {
+  if (!data.user) {
     throw new Error("Signup failed.");
   }
 
-  return authData.user;
+  return data.user;
 }
 
 // Function to handle user login
 export async function loginUser(form: LoginForm) {
-  const { data, error } = await supabase.auth.signInWithPassword({
+  const { data } = await axios.post(`${API}/auth/login`, {
     email: form.email,
     password: form.password,
   });
 
-  if (error) {
-    throw error;
-  }
-
-  if (!data.session) {
+  if (!data.access_token || !data.refresh_token || !data.user) {
     throw new Error("Login failed.");
   }
 
-  localStorage.setItem("access_token", data.session.access_token);
+  await supabase.auth.setSession({
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+  });
+
+  localStorage.setItem("access_token", data.access_token);
+  localStorage.setItem("refresh_token", data.refresh_token);
   localStorage.setItem("user", JSON.stringify(data.user));
 
   return data.user;
@@ -51,12 +46,17 @@ export async function loginUser(form: LoginForm) {
 
 // Function to handle user logout
 export async function logoutUser() {
-  const { error } = await supabase.auth.signOut();
+  const { data: { session } } = await supabase.auth.getSession();
 
-  if (error) {
-    throw error;
+  if (session?.access_token) {
+    await axios.post(`${API}/auth/logout`, {}, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
   }
 
+  await supabase.auth.signOut();
+
   localStorage.removeItem("access_token");
+  localStorage.removeItem("refresh_token");
   localStorage.removeItem("user");
 }

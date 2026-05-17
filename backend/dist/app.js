@@ -4,37 +4,38 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.app = void 0;
-const express_1 = __importDefault(require("express"));
 const cors_1 = __importDefault(require("cors"));
-const helmet_1 = __importDefault(require("helmet"));
-const morgan_1 = __importDefault(require("morgan"));
-const profile_routes_1 = __importDefault(require("./routes/profile.routes"));
-const post_routes_1 = __importDefault(require("./routes/post.routes"));
-const match_routes_1 = __importDefault(require("./routes/match.routes"));
-const message_routes_1 = __importDefault(require("./routes/message.routes"));
+const dotenv_1 = __importDefault(require("dotenv"));
+const express_1 = __importDefault(require("express"));
 const error_middleware_1 = require("./middleware/error.middleware");
+const auth_routes_1 = __importDefault(require("./routes/auth.routes"));
+const matches_routes_1 = __importDefault(require("./routes/matches.routes"));
+const messages_routes_1 = __importDefault(require("./routes/messages.routes"));
+const posts_routes_1 = __importDefault(require("./routes/posts.routes"));
+const profile_routes_1 = __importDefault(require("./routes/profile.routes"));
+const reviews_routes_1 = __importDefault(require("./routes/reviews.routes"));
+dotenv_1.default.config();
 exports.app = (0, express_1.default)();
-exports.app.use((0, cors_1.default)({
-    origin: process.env.FRONTEND_URL,
-    credentials: true,
-}));
-// Security middleware
-exports.app.use((0, helmet_1.default)({
-    contentSecurityPolicy: false, // Disable CSP for development; configure properly for production
-}));
-exports.app.use((0, morgan_1.default)("dev"));
+exports.app.use((req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    if (req.method === "OPTIONS") {
+        return res.status(200).end();
+    }
+    next();
+});
+exports.app.use((0, cors_1.default)());
 exports.app.use(express_1.default.json());
-//end points check server for testing
-exports.app.get("/health", (_req, res) => {
-    res.json({ ok: true });
-});
-// Root endpoint for basic check
+exports.app.use(express_1.default.urlencoded({ extended: true }));
 exports.app.get("/", (_req, res) => {
-    res.send("Backend is running");
+    res.json({ message: "RoomieKorea API is running!" });
 });
-// API routes
-exports.app.use("/api/profile", profile_routes_1.default);
-exports.app.use("/api/posts", post_routes_1.default);
-exports.app.use("/api/matches", match_routes_1.default);
-exports.app.use("/api/messages", message_routes_1.default);
+exports.app.use("/api/auth", auth_routes_1.default);
+exports.app.use("/api/users", profile_routes_1.default);
+exports.app.use("/api/posts", posts_routes_1.default);
+exports.app.use("/api/matches", matches_routes_1.default);
+exports.app.use("/api/messages", messages_routes_1.default);
+exports.app.use("/api/reviews", reviews_routes_1.default);
 exports.app.use(error_middleware_1.errorHandler);
+exports.default = exports.app;

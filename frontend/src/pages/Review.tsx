@@ -6,9 +6,8 @@ import axios from "axios";
 import type { CSSProperties, FormEvent } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { API } from "../lib/api";
 import { supabase } from "../lib/supabase";
-
-const API = "http://localhost:8000/api";
 
 // ── Helper: Get JWT token ──
 const getToken = async () => {

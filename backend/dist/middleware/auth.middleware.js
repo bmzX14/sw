@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.requireAuth = requireAuth;
 const supabaseAdmin_1 = require("../lib/supabaseAdmin");
+// Middleware to require authentication and populate req.user
 async function requireAuth(req, res, next) {
     try {
         const authHeader = req.headers.authorization;
@@ -16,6 +17,7 @@ async function requireAuth(req, res, next) {
         req.user = {
             id: user.id,
             email: user.email,
+            metadata: user.user_metadata ?? {},
         };
         next();
     }

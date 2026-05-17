@@ -2,6 +2,7 @@ import axios from "axios";
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { API } from "../lib/api";
 
 type PostType =
   | "Room Available"
@@ -30,74 +31,35 @@ type Post = {
   status: "active" | "closed";
 };
 
-const samplePosts: Post[] = [
-  {
-    id: "sample-1",
-    postType: "Room Available",
-    title: "Looking for a roommate near Myongji University",
-    region: "Seodaemun-gu",
-    address: "Namgajwa-dong, Seodaemun-gu, Seoul",
-    rent: 45,
-    deposit: 500,
-    moveInDate: "2026-06-01",
-    genderPreference: "Female Preferred",
-    lifestyleTags: ["Non-smoker", "Quiet lifestyle", "Clean"],
-    descriptionKo:
-      "Looking for a roommate to share a two-room apartment near Myongji University. The place is close to campus and convenient for student life.",
-    descriptionEn:
-      "Looking for a roommate to share a two-room apartment near Myongji University. The place is close to campus and convenient for student life.",
-    photos: [],
-    writerName: "Jeong An",
-    university: "Myongji University",
-    verified: true,
-    createdAt: "2026.05.11",
-    status: "active",
-  },
-  {
-    id: "sample-2",
-    postType: "Looking for Room",
-    title: "Looking for someone to share rent and deposit",
-    region: "Mapo-gu",
-    address: "Yeonnam-dong, Mapo-gu, Seoul",
-    rent: 60,
-    deposit: 1000,
-    moveInDate: "2026-06-15",
-    genderPreference: "No Preference",
-    lifestyleTags: ["Regular routine", "No pets", "Clean"],
-    descriptionKo:
-      "Looking for a roommate to search for a two-room or three-room apartment together and share the deposit and monthly rent.",
-    descriptionEn:
-      "Looking for a roommate to search for a two-room or three-room apartment together and share the deposit and monthly rent.",
-    photos: [],
-    writerName: "Mya",
-    university: "Myongji University",
-    verified: true,
-    createdAt: "2026.05.10",
-    status: "active",
-  },
-  {
-    id: "sample-3",
-    postType: "Short-term Rental",
-    title: "Short-term roommate wanted during vacation",
-    region: "Eunpyeong-gu",
-    address: "Eungam-dong, Eunpyeong-gu, Seoul",
-    rent: 35,
-    deposit: 0,
-    moveInDate: "2026-07-01",
-    genderPreference: "Female Preferred",
-    lifestyleTags: ["Short-term available", "Quiet lifestyle", "Non-smoker"],
-    descriptionKo:
-      "Looking for a short-term roommate during vacation. This post is suitable for students who need temporary housing.",
-    descriptionEn:
-      "Looking for a short-term roommate during vacation. This post is suitable for students who need temporary housing.",
-    photos: [],
-    writerName: "Nguyen",
-    university: "Myongji University",
-    verified: true,
-    createdAt: "2026.05.09",
-    status: "active",
-  },
-];
+function normalizePhotos(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+  }
+
+  if (typeof value !== "string" || !value.trim()) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+    }
+  } catch {
+    // Fall back to treating the value as one URL or a comma-separated list.
+  }
+
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function getRequestErrorMessage(err: any, fallback: string): string {
+  if (err?.response?.data?.message) return err.response.data.message;
+  if (err?.code === "ERR_NETWORK") return `Cannot connect to backend at ${API}. Please start the backend server.`;
+  return err?.message || fallback;
+}
 
 export default function Browse() {
   const navigate = useNavigate();
@@ -106,15 +68,15 @@ export default function Browse() {
   const [typeFilter, setTypeFilter] = useState("All");
   const [regionFilter, setRegionFilter] = useState("All");
   const [maxBudget, setMaxBudget] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
     fetchPosts();
   }, []);
   const fetchPosts = async () => {
   try {
-    const { data } = await axios.get("http://localhost:8000/api/posts");
-    console.log("API response:", data);
-    console.log("Number of posts:", data.length);
+    setError("");
+    const { data } = await axios.get(`${API}/posts`);
     // Map DB fields to UI fields
     const mapped: Post[] = data.map((p: any) => ({
       id: p.id,
@@ -132,7 +94,7 @@ export default function Browse() {
       lifestyleTags: p.lifestyle_tags || [],
       descriptionKo: p.description_ko || "",
       descriptionEn: p.description_en || "",
-      photos: p.photos || [],
+      photos: normalizePhotos(p.photos),
       writerName: p.users?.name || "Student",
       university: p.users?.university || "",
       verified: p.users?.is_verified || false,
@@ -141,9 +103,10 @@ export default function Browse() {
     }));
 
     setPosts(mapped);
-  } catch (err) {
+  } catch (err: any) {
     console.error("Failed to fetch posts", err);
-    setPosts(samplePosts);
+    setError(getRequestErrorMessage(err, "Failed to load posts from database."));
+    setPosts([]);
   }
 };
   const regions = useMemo(() => {
@@ -203,14 +166,17 @@ export default function Browse() {
           </button>
         </section>
 
+        {error && <div style={styles.errorBox}>{error}</div>}
+
         <section style={styles.filterBox}>
           <div style={styles.fieldGroup}>
             <label style={styles.label}>Post Type</label>
             <select
+              aria-label="Post Type"
               style={styles.select}
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
-            >
+              >
               <option value="All">All</option>
               <option value="Room Available">Room Available</option>
               <option value="Looking for Room">Looking for Room</option>
@@ -222,6 +188,7 @@ export default function Browse() {
           <div style={styles.fieldGroup}>
             <label style={styles.label}>Region</label>
             <select
+              aria-label="Region"
               style={styles.select}
               value={regionFilter}
               onChange={(e) => setRegionFilter(e.target.value)}
@@ -237,6 +204,7 @@ export default function Browse() {
           <div style={styles.fieldGroup}>
             <label style={styles.label}>Max Rent</label>
             <input
+              aria-label="Max Rent"
               style={styles.input}
               type="number"
               min="0"
@@ -579,5 +547,14 @@ const styles: Record<string, CSSProperties> = {
     textAlign: "center",
     color: "#888",
     fontSize: 14,
+  },
+  errorBox: {
+    background: "#fff5f5",
+    border: "1px solid #fecaca",
+    color: "#c0392b",
+    padding: "12px 16px",
+    borderRadius: 2,
+    fontSize: 13,
+    marginBottom: 20,
   },
 };
