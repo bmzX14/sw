@@ -4,7 +4,7 @@
 
 import axios from "axios";
 import type { CSSProperties, FormEvent } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API } from "../lib/api";
 import { supabase } from "../lib/supabase";
@@ -36,7 +36,7 @@ type CompletedMatch = {
   status: string;
 };
 
-type Review = {
+type ReviewItem = {
   id: string;
   matchId: string;
   targetName: string;
@@ -55,7 +55,7 @@ export default function Review() {
 
   //State 
   const [matches, setMatches] = useState<CompletedMatch[]>([]);
-  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [selectedMatchId, setSelectedMatchId] = useState<string>("");
   const [rating, setRating] = useState<number>(0);
   const [hoveredRating, setHoveredRating] = useState<number>(0);
@@ -64,57 +64,20 @@ export default function Review() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
-
-  useEffect(() => {
-    initReview();
-  }, []);
-
-  // When match changes, fetch reviews for that user 
-  useEffect(() => {
-    if (selectedMatchId) {
-      const match = matches.find(m => m.id === selectedMatchId);
-      console.log("Selected match :", match);
-      console.log("Rommate ID:", match?.roommateId );
-      if (match) fetchReviews(match.roommateId);
-    }
-  }, [selectedMatchId,matches]);
-
-  
-  // Functions
- 
-
-  // Initialize: get current user and fetch accepted matches
-  const initReview = async () => {
-    const user = await getCurrentUser();
-    if (!user) { navigate("/login"); return; }
-    setCurrentUser(user);
-    await fetchMatches(user);
-    setLoading(false);
-  };
-
   // Fetch accepted matches from Express backend
-  const fetchMatches = async (user: any) => {
+  const fetchMatches = useCallback(async (user: any) => {
   try {
     const token = await getToken();
     const headers = { Authorization: `Bearer ${token}` };
 
-    const [incomingRes, outgoingRes] = await Promise.all([
-      axios.get(`${API}/matches/incoming`, { headers }),
-      axios.get(`${API}/matches/outgoing`, { headers }),
-    ]);
-
-    const allMatches = [...incomingRes.data, ...outgoingRes.data]
-      .filter((m: any) => m.status === "accepted");
+    const { data: allMatches } = await axios.get(`${API}/matches/accepted`, { headers });
 
     const converted: CompletedMatch[] = allMatches.map((match: any) => {
       const isRequester = match.requester_id === user.id;
       const opponent = isRequester
-        ? { id: match.owner_id }
+        ? match.owner
         : match.requester;
-      console.log("isRequester:", isRequester)    
-      console.log("opponent object:", opponent)    
-      console.log("opponent id:", opponent?.id)     
+
       return {
         id: match.id,
         roommateName: opponent?.name || "Roomie",
@@ -136,21 +99,20 @@ export default function Review() {
     console.error("Failed to fetch matches", err);
     setError("Failed to load matches.");
   }
-};
+}, []);
+
   // Fetch reviews for a specific user from Express backend
-  const fetchReviews = async (userId: string) => {
-  console.log(`Fetching reviews for user ${userId}...`);
+  const fetchReviews = useCallback(async (userId: string, match?: CompletedMatch) => {
   if (!userId) return;
 
   try {
     const { data } = await axios.get(`${API}/reviews/${userId}`);
-    console.log("Fetched reviews:", data);
 
-    const converted: Review[] = data.reviews.map((r: any) => ({
+    const converted: ReviewItem[] = data.reviews.map((r: any) => ({
       id: r.id,
       matchId: r.match_id,
-      targetName: selectedMatch?.roommateName || "Roomie",
-      targetUniversity: selectedMatch?.roommateUniversity || "",
+      targetName: match?.roommateName || "Roomie",
+      targetUniversity: match?.roommateUniversity || "",
       rating: r.rating,
       comment: r.comment || "",
       createdAt: new Date(r.created_at).toLocaleDateString(),
@@ -160,7 +122,27 @@ export default function Review() {
   } catch (err) {
     console.error("Failed to fetch reviews", err);
   }
-};
+}, []);
+
+  // Initialize: get current user and fetch accepted matches
+  const initReview = useCallback(async () => {
+    const user = await getCurrentUser();
+    if (!user) { navigate("/login"); return; }
+    await fetchMatches(user);
+    setLoading(false);
+  }, [fetchMatches, navigate]);
+
+  useEffect(() => {
+    initReview();
+  }, [initReview]);
+
+  // When match changes, fetch reviews for that user 
+  useEffect(() => {
+    if (selectedMatchId) {
+      const match = matches.find(m => m.id === selectedMatchId);
+      if (match) fetchReviews(match.roommateId, match);
+    }
+  }, [selectedMatchId, matches, fetchReviews]);
 
   // Submit review to Express backend
   const submitReview = async (e: FormEvent<HTMLFormElement>) => {
@@ -192,7 +174,7 @@ export default function Review() {
       });
 
       // Refresh reviews after submit
-      await fetchReviews(selectedMatch.roommateId);
+      await fetchReviews(selectedMatch.roommateId, selectedMatch);
 
       // Reset form
       setRating(0);

@@ -61,6 +61,20 @@ const postTypeMap: Record<string, string> = {
   "Contract Transfer": "lease_takeover",
 };
 
+const initialForm = {
+  postType: "Room Available",
+  title: "",
+  region: "",
+  address: "",
+  nearUniversity: "",
+  rent: "",
+  deposit: "",
+  moveInDate: "",
+  genderPreference: "No Preference",
+  descriptionKo: "",
+  descriptionEn: "",
+};
+
 
 // Main PostForm Component
 
@@ -69,35 +83,26 @@ export default function PostForm() {
   const navigate = useNavigate();
 
   // Form State 
-  const [form, setForm] = useState({
-    postType: "Room Available",
-    title: "",
-    region: "",
-    address: "",
-    nearUniversity: "",
-    rent: "",
-    deposit: "",
-    moveInDate: "",
-    genderPreference: "No Preference",
-    descriptionKo: "",
-    descriptionEn: "",
-  });
+  const [form, setForm] = useState(initialForm);
 
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [photoFiles, setPhotoFiles] = useState<File[]>([]);
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   //  Handle input changes 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
     setError("");
+    setSuccess("");
   };
 
   //  Toggle lifestyle tag 
   const toggleTag = (tag: string) => {
+    setSuccess("");
     setSelectedTags(prev =>
       prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
     );
@@ -109,6 +114,7 @@ export default function PostForm() {
     if (files.length === 0) return;
 
     setPhotoFiles(files);
+    setSuccess("");
 
     // Generate preview URLs
     Promise.all(
@@ -147,6 +153,7 @@ export default function PostForm() {
   const submitPost = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
 
     // Validate required fields
     if (!form.region.trim() || !form.rent.trim() || !form.moveInDate.trim() || !form.descriptionEn.trim()) {
@@ -161,7 +168,6 @@ export default function PostForm() {
       if (!user) { navigate("/login"); return; }
 
       const token = await getToken();
-      console.log("Token:",token); // Debug: Check if token is retrieved
 
       // Upload photos to Supabase Storage first
       const photoUrls = await uploadPhotos(user.id);
@@ -185,9 +191,15 @@ export default function PostForm() {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      navigate("/browse");
+      setForm(initialForm);
+      setSelectedTags([]);
+      setPhotoFiles([]);
+      setPhotoPreviews([]);
+      setSuccess("Post created successfully.");
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (err: any) {
       setError(getSubmitErrorMessage(err));
+      window.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       setSubmitting(false);
     }
@@ -227,10 +239,12 @@ export default function PostForm() {
         </section>
 
         {/* ── Post Form ── */}
+        {error && <div style={styles.errorBox}>{error}</div>}
+        {success && <div style={styles.successBox}>{success}</div>}
+
         <form style={styles.formPanel} onSubmit={submitPost}>
 
           {/* Error message */}
-          {error && <div style={styles.errorBox}>{error}</div>}
 
           {/* ── Basic Information ── */}
           <div style={styles.section}>
@@ -420,6 +434,7 @@ const styles: Record<string, CSSProperties> = {
   description: { fontSize: 14, color: "#888", lineHeight: 1.7, maxWidth: 680, margin: 0 },
   formPanel: { background: "#ffffff", borderRadius: 2, boxShadow: "0 4px 40px rgba(0,0,0,0.06)", padding: "40px 48px" },
   errorBox: { background: "#fff5f5", border: "1px solid #fecaca", color: "#c0392b", padding: "12px 16px", borderRadius: 2, fontSize: 13, marginBottom: 24 },
+  successBox: { background: "#f0faf4", border: "1px solid #a8e6c1", color: "#1f8a4c", padding: "12px 16px", borderRadius: 2, fontSize: 13, marginBottom: 24 },
   section: { marginBottom: 8 },
   sectionLabel: { fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: "#aaa", marginBottom: 18 },
   grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 18 },

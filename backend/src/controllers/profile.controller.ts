@@ -100,8 +100,22 @@ export async function updateMyProfile(req: AuthenticatedRequest, res: Response) 
         language_spoken,
         profile_photo,
         student_id_doc,
-        is_verified,
     } = req.body;
+
+    const { data: existingProfile, error: selectError } = await supabaseAdmin
+        .from("users")
+        .select("student_id_doc,is_verified")
+        .eq("id", userId)
+        .maybeSingle();
+
+    if (selectError) {
+        return res.status(400).json({ message: selectError.message });
+    }
+
+    const studentDocChanged =
+        typeof student_id_doc === "string" &&
+        student_id_doc.length > 0 &&
+        student_id_doc !== existingProfile?.student_id_doc;
 
     const { data, error } = await supabaseAdmin
         .from("users")
@@ -115,7 +129,7 @@ export async function updateMyProfile(req: AuthenticatedRequest, res: Response) 
             language_spoken,
             profile_photo,
             student_id_doc,
-            is_verified,
+            is_verified: studentDocChanged ? false : existingProfile?.is_verified ?? false,
     })
     .eq("id", userId)
     .select("*")

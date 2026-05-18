@@ -17,8 +17,9 @@ export async function getMessages(req: AuthenticatedRequest, res: Response) {
         // Security: verify user is part of this match
         const { data: match, error: matchError } = await supabaseAdmin
         .from("matches")
-        .select("id, requester_id, owner_id")
+        .select("id, requester_id, owner_id, status")
         .eq("id", matchId)
+        .eq("status", "accepted")
         .or(`requester_id.eq.${userId},owner_id.eq.${userId}`)
         .maybeSingle();
 

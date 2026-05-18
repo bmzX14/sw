@@ -28,6 +28,9 @@ async function register(req, res) {
             throw authError;
         if (!authData.user)
             throw new Error("Failed to create user  .");
+        if (authData.user.identities && authData.user.identities.length === 0) {
+            return res.status(400).json({ message: "This email is already registered. Please login or use another email." });
+        }
         // Insert the app profile row through the service client.
         const { error: dbError } = await supabaseAdmin_1.supabaseAdmin.from("users").upsert({
             id: authData.user.id,
@@ -41,8 +44,12 @@ async function register(req, res) {
         }, {
             onConflict: "id",
         });
-        if (dbError)
+        if (dbError) {
+            if (dbError.code === "23505") {
+                return res.status(400).json({ message: "This email is already registered. Please login or use another email." });
+            }
             throw dbError;
+        }
         return res.status(201).json({
             message: "Account created successfully. Please confirm your email before logging in.",
             user: authData.user,

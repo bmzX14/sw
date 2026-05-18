@@ -234,10 +234,11 @@ async function getOutgoingMatches(req, res) {
         const sanitized = data.map((match) => ({
             ...match,
             posts: {
+                ...match.posts,
                 //only reveal full address if match is accepted
                 full_address: match.status === "accepted"
                     ? match.posts?.full_address
-                    : " Adress revealed after match is accepted",
+                    : "Address revealed after match is accepted",
             },
         }));
         return res.json(sanitized);
@@ -260,19 +261,19 @@ async function getAcceptedMatches(req, res) {
                     post_type,
                     district,
                     full_address,
-                    monthly_rent,
+                    monthly_rent
             ),
             requester: users!requester_id(
                 id,
                 name,
                 profile_photo,
-                university,
+                university
             ),
             owner: users!owner_id(
                 id,
                 name,
                 profile_photo,
-                university,
+                university
                 )
             `)
             .eq("status", "accepted")

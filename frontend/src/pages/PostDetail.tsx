@@ -1,6 +1,6 @@
 import axios from "axios";
 import type { CSSProperties } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { API } from "../lib/api";
 import { supabase } from "../lib/supabase";
@@ -81,11 +81,7 @@ export default function PostDetail() {
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    loadPost();
-  }, [id]);
-
-  const loadPost = async () => {
+  const loadPost = useCallback(async () => {
     if (!id) return;
 
     setLoading(true);
@@ -106,7 +102,11 @@ export default function PostDetail() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
+
+  useEffect(() => {
+    loadPost();
+  }, [loadPost]);
 
   const handleInterest = async () => {
     if (!post) return;

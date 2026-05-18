@@ -250,12 +250,13 @@ export async function getIncomingMatches( req: AuthenticatedRequest, res: Respon
             const sanitized = data.map((match : any ) => ({
                 ...match,
                 posts:{
-                //only reveal full address if match is accepted
-                full_address: match.status === "accepted"
-                    ? match.posts?.full_address
-                    : " Adress revealed after match is accepted",
-            },
-        }));
+                    ...match.posts,
+                    //only reveal full address if match is accepted
+                    full_address: match.status === "accepted"
+                        ? match.posts?.full_address
+                        : "Address revealed after match is accepted",
+                },
+            }));
         return res.json(sanitized);
         }catch (err: any){
             return res.status(500).json({ message: err.message || "Failed to fetch outgoing matches." });
@@ -277,19 +278,19 @@ export async function getAcceptedMatches(req: AuthenticatedRequest, res: Respons
                     post_type,
                     district,
                     full_address,
-                    monthly_rent,
+                    monthly_rent
             ),
             requester: users!requester_id(
                 id,
                 name,
                 profile_photo,
-                university,
+                university
             ),
             owner: users!owner_id(
                 id,
                 name,
                 profile_photo,
-                university,
+                university
                 )
             `)
             .eq("status", "accepted")

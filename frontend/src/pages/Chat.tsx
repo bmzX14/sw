@@ -62,7 +62,6 @@ export default function Chat() {
     const [currentUser, setCurrentUser] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
-    const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
     const currentUserRef = useRef<any>(null);
   // Ref for auto-scrolling to latest message
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -116,9 +115,6 @@ export default function Chat() {
     })
     .subscribe();
 
-  // Clear unread count
-  setUnreadCounts(prev => ({ ...prev, [selectedConversationId]: 0 }));
-
   // ← Cleanup: remove channel when conversation changes
   return () => {
     supabase.removeChannel(channel);
@@ -150,13 +146,7 @@ const fetchConversations = async (user: any) => {
         const token = await getToken();
         const headers = { Authorization: `Bearer ${token}` };
 
-        const [incomingRes, outgoingRes] = await Promise.all([
-            axios.get(`${API}/matches/incoming`, { headers }),
-            axios.get(`${API}/matches/outgoing`, { headers }),
-        ]);
-
-        const allMatches = [...incomingRes.data, ...outgoingRes.data]
-            .filter((m: any) => m.status === "accepted");
+        const { data: allMatches } = await axios.get(`${API}/matches/accepted`, { headers });
 
       // Convert matches to conversation format
         const convs: Conversation[] = allMatches.map((match: any) => {
@@ -218,51 +208,6 @@ const fetchConversations = async (user: any) => {
         } catch (err) {
         console.error("Failed to fetch messages", err);
         }
-    };
-
-    // Subscribe to real-time new messages via Supabase Realtime
-    const subscribeToMessages = (matchId: string) => {
-        const channel = supabase
-        .channel(`messages:${matchId}`)
-        .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'messages',
-            filter: `match_id=eq.${matchId}`
-        }, (payload) => {
-            const newMsg = payload.new as any;
-
-            const formatted: Message = {
-            id: newMsg.id,
-            conversationId: matchId,
-            sender: newMsg.sender_id === currentUser?.id ? "me" : "opponent",
-            senderName: newMsg.sender_id === currentUser?.id ? "Me" : "Roomie",
-            text: newMsg.content,
-            createdAt: new Date(newMsg.created_at).toLocaleTimeString([], {
-                hour: "2-digit", minute: "2-digit"
-            }),
-            sender_id: newMsg.sender_id,
-            };
-
-            // Avoid duplicates
-            setMessages(prev => {
-            if (prev.find(m => m.id === formatted.id)) return prev;
-            return [...prev, formatted];
-            });
-
-            // Update sidebar last message and unread count
-            setConversations(prev => prev.map(c =>
-            c.id === matchId ? {
-                ...c,
-                lastMessage: newMsg.content,
-                updatedAt: formatted.createdAt,
-                unreadCount: selectedConversationId !== matchId ? c.unreadCount + 1 : 0,
-            } : c
-            ));
-        })
-        .subscribe();
-
-        return () => supabase.removeChannel(channel);
     };
 
     // Select conversation and clear unread count

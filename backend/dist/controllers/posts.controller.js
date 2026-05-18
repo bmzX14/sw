@@ -153,8 +153,15 @@ async function createPost(req, res) {
         })
             .select("*")
             .single();
-        if (error)
+        if (error) {
+            if (error.message?.includes("row-level security")) {
+                const message = supabaseAdmin_1.supabaseServiceRole === "service_role"
+                    ? "Post creation is blocked by Supabase RLS. Add an insert policy for posts or check if FORCE RLS is enabled."
+                    : "Post creation is blocked by Supabase RLS because backend SUPABASE_SERVICE_ROLE_KEY is not a service_role key. Replace it with the Supabase service_role secret key in backend/.env.";
+                return res.status(500).json({ message });
+            }
             throw error;
+        }
         return res.status(201).json(data);
     }
     catch (error) {
@@ -166,10 +173,29 @@ async function createPost(req, res) {
 async function updatePost(req, res) {
     const userId = req.user.id;
     const { id } = req.params;
+    const { post_type, district, full_address, near_university, monthly_rent, deposit, deposit_negotiable, room_type, furnished, available_from, available_until, gender_preference, lifestyle_tags, description_en, description_ko, photos, status, } = req.body;
     try {
         const { data, error } = await supabaseAdmin_1.supabaseAdmin
             .from("posts")
-            .update({ ...req.body })
+            .update({
+            post_type,
+            district,
+            full_address,
+            near_university,
+            monthly_rent,
+            deposit,
+            deposit_negotiable,
+            room_type,
+            furnished,
+            available_from,
+            available_until,
+            gender_preference,
+            lifestyle_tags,
+            description_en,
+            description_ko,
+            photos,
+            status,
+        })
             .eq("id", id)
             .eq("user_id", userId) // ensure only owner can update
             .select("*")

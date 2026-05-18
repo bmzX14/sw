@@ -1,14 +1,12 @@
 
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { NATIONALITIES, UNIVERSITIES } from "../lib/registerOptions";
 import { registerUser } from "../services/authService";
 
 import type { RegisterForm } from "../types/user";
 
 export default function Register() {
-    const navigate = useNavigate();
-
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");

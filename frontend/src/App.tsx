@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import Browse from "./pages/Browse";
@@ -14,7 +15,7 @@ import Review from './pages/Review';
 
 // Protected Route — redirects to login if not authenticated
 function ProtectedRoute({ children }: { children: React.ReactElement }) {
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -22,6 +23,13 @@ function ProtectedRoute({ children }: { children: React.ReactElement }) {
       setSession(session);
       setLoading(false);
     });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   if (loading) return (

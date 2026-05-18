@@ -22,13 +22,17 @@ async function submitReview(req, res) {
         // Security: verify reviewer was part of this accepted match
         const { data: match, error: matchError } = await supabaseAdmin_1.supabaseAdmin
             .from("matches")
-            .select("id")
+            .select("id, requester_id, owner_id")
             .eq("id", match_id)
             .eq("status", "accepted")
             .or(`requester_id.eq.${reviewerId},owner_id.eq.${reviewerId}`)
             .maybeSingle();
         if (matchError || !match) {
             return res.status(403).json({ message: "You can only review someone you matched with." });
+        }
+        const actualRevieweeId = match.requester_id === reviewerId ? match.owner_id : match.requester_id;
+        if (reviewee_id !== actualRevieweeId) {
+            return res.status(403).json({ message: "Reviewee must be the other user in this match." });
         }
         // Check if already reviewed this match
         const { data: existing } = await supabaseAdmin_1.supabaseAdmin
