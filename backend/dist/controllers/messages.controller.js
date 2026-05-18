@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getMessages = getMessages;
 exports.sendMessage = sendMessage;
+exports.deleteMessage = deleteMessage;
 const supabaseAdmin_1 = require("../lib/supabaseAdmin");
 // Messaging controller for accepted-match conversations.
 // Return all messages for an accepted match that includes the current user.
@@ -75,5 +76,45 @@ async function sendMessage(req, res) {
     }
     catch (err) {
         return res.status(500).json({ message: err.message || "Failed to send message." });
+    }
+}
+// Delete one of the current user's own messages from an accepted match.
+async function deleteMessage(req, res) {
+    const userId = req.user.id;
+    const { messageId } = req.params;
+    try {
+        const { data: message, error: messageError } = await supabaseAdmin_1.supabaseAdmin
+            .from("messages")
+            .select("id, match_id, sender_id")
+            .eq("id", messageId)
+            .maybeSingle();
+        if (messageError)
+            throw messageError;
+        if (!message) {
+            return res.status(404).json({ message: "Message not found." });
+        }
+        const { data: match, error: matchError } = await supabaseAdmin_1.supabaseAdmin
+            .from("matches")
+            .select("id, requester_id, owner_id, status")
+            .eq("id", message.match_id)
+            .eq("status", "accepted")
+            .or(`requester_id.eq.${userId},owner_id.eq.${userId}`)
+            .maybeSingle();
+        if (matchError || !match) {
+            return res.status(403).json({ message: "Not authorized to delete this message." });
+        }
+        if (message.sender_id !== userId) {
+            return res.status(403).json({ message: "You can only delete your own messages." });
+        }
+        const { error: deleteError } = await supabaseAdmin_1.supabaseAdmin
+            .from("messages")
+            .delete()
+            .eq("id", messageId);
+        if (deleteError)
+            throw deleteError;
+        return res.status(204).send();
+    }
+    catch (err) {
+        return res.status(500).json({ message: err.message || "Failed to delete message." });
     }
 }
