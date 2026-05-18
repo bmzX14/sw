@@ -5,18 +5,18 @@ exports.login = login;
 exports.logout = logout;
 const supabase_1 = require("../lib/supabase");
 const supabaseAdmin_1 = require("../lib/supabaseAdmin");
-//handles user registration, loging and logout
-//use Supase Auth for all authentication
-//POST /api/auth/register 
+// Authentication controller for signup, login, and logout flows.
+// Create a new Supabase auth user and the matching app profile row.
 async function register(req, res) {
     const { name, email, password, university, nationality } = req.body;
+    const supabase = (0, supabase_1.createSupabaseAuthClient)();
     //validate required fields
     if (!name || !email || !password) {
         return res.status(400).json({ message: "Name, email and password are required." });
     }
     try {
-        // Create auth user through normal Supabase sign-up so email verification is sent.
-        const { data: authData, error: authError } = await supabase_1.supabase.auth.signUp({
+        // Use the anon auth client so Supabase can send the verification email.
+        const { data: authData, error: authError } = await supabase.auth.signUp({
             email,
             password,
             options: {
@@ -24,14 +24,15 @@ async function register(req, res) {
                 data: { name, university, nationality },
             },
         });
-        if (authError)
+        if (authError) {
+            if (authError.message?.toLowerCase().includes("already registered")) {
+                return res.status(400).json({ message: "This email is already registered. Please login or use another email." });
+            }
             throw authError;
+        }
         if (!authData.user)
             throw new Error("Failed to create user  .");
-        if (authData.user.identities && authData.user.identities.length === 0) {
-            return res.status(400).json({ message: "This email is already registered. Please login or use another email." });
-        }
-        // Insert the app profile row through the service client.
+        // Store app-specific profile data in the users table.
         const { error: dbError } = await supabaseAdmin_1.supabaseAdmin.from("users").upsert({
             id: authData.user.id,
             email,
@@ -59,14 +60,15 @@ async function register(req, res) {
         return res.status(400).json({ message: error.message || "Registration failed." });
     }
 }
-//POST /api/auth/login
+// Authenticate a user and return tokens for the frontend session.
 async function login(req, res) {
     const { email, password } = req.body;
+    const supabase = (0, supabase_1.createSupabaseAuthClient)();
     if (!email || !password) {
         return res.status(400).json({ message: "Email and password are required." });
     }
     try {
-        const { data, error } = await supabaseAdmin_1.supabaseAdmin.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
         });
@@ -84,7 +86,7 @@ async function login(req, res) {
         return res.status(401).json({ message: error.message || "Invalid email or password." });
     }
 }
-//POST /api/auth/logout 
+// Placeholder logout endpoint. Frontend currently signs out directly with Supabase.
 async function logout(req, res) {
     try {
         const { error } = await supabaseAdmin_1.supabaseAdmin.auth.signOut();

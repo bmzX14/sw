@@ -11,8 +11,10 @@ import reviewsRoutes from "./routes/reviews.routes";
 
 dotenv.config();
 
+// Create the Express application and wire shared middleware.
 export const app = express();
 
+// Allow the frontend app to call the API from the browser during development.
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
@@ -27,10 +29,12 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Lightweight health check for quick API verification.
 app.get("/", (_req, res) => {
   res.json({ message: "RoomieKorea API is running!" });
 });
 
+// Mount feature-based API modules.
 app.use("/api/auth", authRoutes);
 app.use("/api/users", profileRoutes);
 app.use("/api/posts", postsRoutes);

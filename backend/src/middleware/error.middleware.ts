@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 
+// Fallback error handler for unhandled Express errors.
 export function errorHandler(
   err: any,
   _req: Request,

@@ -2,13 +2,9 @@ import { Response } from "express";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 
+// Messaging controller for accepted-match conversations.
 
-
-// Handles chat messages between matched users
-// Only users who are part of a match can send/receive messages
-
-// GET /api/messages/:matchId
-// Get all messages for a specific match
+// Return all messages for an accepted match that includes the current user.
 export async function getMessages(req: AuthenticatedRequest, res: Response) {
     const userId = req.user!.id;
     const { matchId } = req.params;
@@ -45,9 +41,8 @@ export async function getMessages(req: AuthenticatedRequest, res: Response) {
     }
     }
 
-    // POST /api/messages/:matchId
-    // Send a new message to a match
-    export async function sendMessage(req: AuthenticatedRequest, res: Response) {
+// Send a new message into an accepted match.
+export async function sendMessage(req: AuthenticatedRequest, res: Response) {
     const userId = req.user!.id;
     const { matchId } = req.params;
     const { content } = req.body;

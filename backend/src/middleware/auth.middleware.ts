@@ -1,8 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 
-
-// Extend the Express Request type to include user information
+// Extend the Express request with the authenticated Supabase user snapshot.
 export interface AuthenticatedRequest extends Request {
   user?: {
     id: string;
@@ -15,7 +14,7 @@ export interface AuthenticatedRequest extends Request {
   };
 }
 
-// Middleware to require authentication and populate req.user
+// Verify the bearer token and attach the current user to req.user.
 export async function requireAuth(
   req: AuthenticatedRequest,
   res: Response,

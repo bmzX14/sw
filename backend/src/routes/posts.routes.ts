@@ -9,27 +9,26 @@ import {
 } from "../controllers/posts.controller";
 import { requireAuth } from "../middleware/auth.middleware";
 
-//Handles all post CRUD operations
-//Browse is public , create/edit/delete require auth
+// Post browsing is public; mutating post data requires authentication.
 
 const router = Router();
 
-//Get All Active posts ( public - no auth needed for browsing )
+// List active public posts for browse pages.
 router.get("/", getAllPosts);
 
-//get a single owned post for editing, including private fields
+// Fetch the owner's editable post payload, including private fields.
 router.get("/:id/edit", requireAuth, getPostForEdit);
 
-//get a single post by id (public)
+// Fetch a single post, with address visibility decided by backend rules.
 router.get("/:id", getPostById);
 
-//create a new post (requires auth)
+// Create a new post for the current user.
 router.post("/", requireAuth, createPost);
 
-//update a post ( requires auth and only owner can update)
+// Update an existing post owned by the current user.
 router.put("/:id", requireAuth, updatePost);
 
-//delete a post ( requires auth and only owner can delete)
+// Delete an existing post owned by the current user.
 router.delete("/:id", requireAuth, deletePost);
 
 export default router;

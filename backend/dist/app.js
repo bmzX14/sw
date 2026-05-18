@@ -15,7 +15,9 @@ const posts_routes_1 = __importDefault(require("./routes/posts.routes"));
 const profile_routes_1 = __importDefault(require("./routes/profile.routes"));
 const reviews_routes_1 = __importDefault(require("./routes/reviews.routes"));
 dotenv_1.default.config();
+// Create the Express application and wire shared middleware.
 exports.app = (0, express_1.default)();
+// Allow the frontend app to call the API from the browser during development.
 exports.app.use((req, res, next) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
@@ -28,9 +30,11 @@ exports.app.use((req, res, next) => {
 exports.app.use((0, cors_1.default)());
 exports.app.use(express_1.default.json());
 exports.app.use(express_1.default.urlencoded({ extended: true }));
+// Lightweight health check for quick API verification.
 exports.app.get("/", (_req, res) => {
     res.json({ message: "RoomieKorea API is running!" });
 });
+// Mount feature-based API modules.
 exports.app.use("/api/auth", auth_routes_1.default);
 exports.app.use("/api/users", profile_routes_1.default);
 exports.app.use("/api/posts", posts_routes_1.default);

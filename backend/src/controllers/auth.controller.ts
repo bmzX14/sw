@@ -1,14 +1,14 @@
 import { Request, Response } from "express";
-import { supabase } from "../lib/supabase";
+import { createSupabaseAuthClient } from "../lib/supabase";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 
-//handles user registration, loging and logout
-//use Supase Auth for all authentication
+// Authentication controller for signup, login, and logout flows.
 
-//POST /api/auth/register 
+// Create a new Supabase auth user and the matching app profile row.
 export async function register(req: Request, res: Response) {
     const { name, email, password, university, nationality } = req.body;
+    const supabase = createSupabaseAuthClient();
 
     //validate required fields
     if (!name || !email || !password) {
@@ -16,7 +16,7 @@ export async function register(req: Request, res: Response) {
     }
 
     try {
-        // Create auth user through normal Supabase sign-up so email verification is sent.
+        // Use the anon auth client so Supabase can send the verification email.
         const { data: authData, error: authError } = await supabase.auth.signUp({
             email,
             password,
@@ -26,14 +26,16 @@ export async function register(req: Request, res: Response) {
             },
         });
 
-        if (authError) throw authError;
+        if (authError) {
+            if (authError.message?.toLowerCase().includes("already registered")) {
+                return res.status(400).json({ message: "This email is already registered. Please login or use another email." });
+            }
+
+            throw authError;
+        }
         if (!authData.user) throw new Error("Failed to create user  .");
 
-        if (authData.user.identities && authData.user.identities.length === 0) {
-            return res.status(400).json({ message: "This email is already registered. Please login or use another email." });
-        }
-
-        // Insert the app profile row through the service client.
+        // Store app-specific profile data in the users table.
         const { error: dbError } = await supabaseAdmin.from("users").upsert({
             id: authData.user.id,
             email,
@@ -64,16 +66,17 @@ export async function register(req: Request, res: Response) {
     }
 }
 
-//POST /api/auth/login
+// Authenticate a user and return tokens for the frontend session.
 export async function login(req: Request, res: Response) {
     const { email, password } = req.body;
+    const supabase = createSupabaseAuthClient();
 
     if (!email || !password) {
         return res.status(400).json({ message: "Email and password are required." });
     }
 
     try {
-        const { data, error } = await supabaseAdmin.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password,
         });
@@ -90,7 +93,7 @@ export async function login(req: Request, res: Response) {
         return res.status(401).json({ message: error.message || "Invalid email or password." });
     }
     }
-//POST /api/auth/logout 
+// Placeholder logout endpoint. Frontend currently signs out directly with Supabase.
 export async function logout(req: AuthenticatedRequest, res: Response) {
     try{
         const { error } = await supabaseAdmin.auth.signOut();

@@ -2,11 +2,13 @@ import { Response } from "express";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 
+// Profile controller for hydrating and updating the current user's profile.
+
 function isBlank(value: string | null | undefined) {
     return !value || !value.trim();
     }
 
-    // Controller function to get the current user's profile
+    // Return the current profile, creating a baseline row when needed.
     export async function getMyProfile(req: AuthenticatedRequest, res: Response) {
     const userId = req.user!.id;
     const metadata = req.user?.metadata ?? {};
@@ -86,7 +88,7 @@ function isBlank(value: string | null | undefined) {
     return res.json(updatedProfile);
     }
 
-// Controller function to update the current user's profile
+// Update editable profile fields for the current user.
 export async function updateMyProfile(req: AuthenticatedRequest, res: Response) {
     const userId = req.user!.id;
 
@@ -100,6 +102,7 @@ export async function updateMyProfile(req: AuthenticatedRequest, res: Response) 
         language_spoken,
         profile_photo,
         student_id_doc,
+        is_verified,
     } = req.body;
 
     const { data: existingProfile, error: selectError } = await supabaseAdmin
@@ -117,6 +120,12 @@ export async function updateMyProfile(req: AuthenticatedRequest, res: Response) 
         student_id_doc.length > 0 &&
         student_id_doc !== existingProfile?.student_id_doc;
 
+    const nextVerifiedStatus = studentDocChanged
+        ? true
+        : typeof is_verified === "boolean"
+            ? is_verified
+            : existingProfile?.is_verified ?? false;
+
     const { data, error } = await supabaseAdmin
         .from("users")
         .update({
@@ -129,7 +138,7 @@ export async function updateMyProfile(req: AuthenticatedRequest, res: Response) 
             language_spoken,
             profile_photo,
             student_id_doc,
-            is_verified: studentDocChanged ? false : existingProfile?.is_verified ?? false,
+            is_verified: nextVerifiedStatus,
     })
     .eq("id", userId)
     .select("*")

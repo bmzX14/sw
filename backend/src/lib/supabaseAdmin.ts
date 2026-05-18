@@ -10,6 +10,7 @@ if (!supabaseUrl || !supabaseServiceRoleKey) {
   throw new Error("Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in .env");
 }
 
+// Read the JWT role for debugging RLS-related issues.
 function getJwtRole(token: string) {
   try {
     const payload = token.split(".")[1];
@@ -25,6 +26,7 @@ function getJwtRole(token: string) {
 
 export const supabaseServiceRole = getJwtRole(supabaseServiceRoleKey);
 
+// This client is reserved for trusted backend database operations.
 export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
   auth: {
     autoRefreshToken: false,

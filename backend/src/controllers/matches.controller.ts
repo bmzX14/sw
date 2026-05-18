@@ -2,11 +2,9 @@ import { Response } from "express";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 
-//matches.controller.ts - handles all matching logic
-    //send match request, accept or decline request/ get incoming or outgoing requests
-    //address is hidden until the match request is accepted
+// Match controller for requests, approvals, cancellations, and match lists.
 
-    // POST /api/matches/request - send a match request to Post owner
+// Send a new request from the current user to a post owner.
 export async function requestMatch(req: AuthenticatedRequest, res: Response) {
     const userId = req.user!.id;
     const { post_id } = req.body;
@@ -65,9 +63,7 @@ export async function requestMatch(req: AuthenticatedRequest, res: Response) {
     }
 }
 
-//PUT /api/matches/:id/accept 
-    //Post owner accepts a match request and after that full address will be revealed 
-
+// Accept a pending request as the post owner and unlock address visibility.
 export async function acceptMatch(req: AuthenticatedRequest, res: Response) {
     const userId = req.user!.id;
     const { id } = req.params;
@@ -106,8 +102,7 @@ export async function acceptMatch(req: AuthenticatedRequest, res: Response) {
         return res.status(500).json({ message: err.message || "Failed to accept match request." });
     }
 }
-//PUT /api/matches/:id/decline
-    //Post owner declines a match request and the request will be deleted from the database
+// Decline a pending request as the post owner.
 export async function declineMatch(req: AuthenticatedRequest, res: Response) {
     const userId = req.user!.id;
     const { id } = req.params;
@@ -141,9 +136,8 @@ export async function declineMatch(req: AuthenticatedRequest, res: Response) {
 
     }
 
-    //PUT /api/matches/:id/cancel
-    //Requester cancels a match request and the request will be deleted from the database
-    export async function cancelMatch(req: AuthenticatedRequest, res: Response) {
+// Cancel a pending request as the original requester.
+export async function cancelMatch(req: AuthenticatedRequest, res: Response) {
     const userId = req.user!.id;
     const { id } = req.params;
     try{
@@ -174,8 +168,7 @@ export async function declineMatch(req: AuthenticatedRequest, res: Response) {
         return res.status(500).json({ message: err.message || "Failed to cancel match request." });
     }
     }
-//GET /api/matches/incoming 
-    //Get incoming match requests for the current user (post owner)
+// List incoming requests for posts owned by the current user.
 export async function getIncomingMatches( req: AuthenticatedRequest, res: Response) {
     const userId = req.user!.id;
 
@@ -213,9 +206,8 @@ export async function getIncomingMatches( req: AuthenticatedRequest, res: Respon
         return res.status(500).json({ message: err.message || "Failed to fetch incoming matches." });
     }
     }
-//GET /api/matches/outgoing
-    //Get outgoing match requests for the current user (requester)
-    export async function getOutgoingMatches(req: AuthenticatedRequest, res: Response){
+// List outgoing requests created by the current user.
+export async function getOutgoingMatches(req: AuthenticatedRequest, res: Response){
         const userId = req.user!.id;
 
         try{
@@ -263,8 +255,7 @@ export async function getIncomingMatches( req: AuthenticatedRequest, res: Respon
         }
     }
 
-// GET /api/matches/accepted
-//Get all accepted matches for the current user (for chat access)
+// List accepted matches for chat and review features.
 export async function getAcceptedMatches(req: AuthenticatedRequest, res: Response){
     const userId = req.user!.id;
 
@@ -307,4 +298,3 @@ export async function getAcceptedMatches(req: AuthenticatedRequest, res: Respons
         
     }
 }
-

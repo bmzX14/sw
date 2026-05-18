@@ -2,17 +2,17 @@ import { Router } from "express";
 import { login, logout, register } from "../controllers/auth.controller";
 import { requireAuth } from "../middleware/auth.middleware";
 
-//handles user registration, loging and logout
+// Authentication endpoints: register, login, and logout.
 
 const router = Router();
 
-//Register  new user
+// Create a new account and trigger email verification.
 router.post("/register", register);
 
-//Login user and return JWT token
+// Exchange email/password for a Supabase session.
 router.post("/login", login);
 
-//Logout user (requires auth)
+// Protected logout endpoint kept for future server-side session handling.
 router.post("/logout", requireAuth, logout);
 
 export default router;

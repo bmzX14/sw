@@ -8,6 +8,7 @@ import { supabase } from "../lib/supabase";
 type DbPost = {
   id: string;
   user_id?: string;
+  full_address?: string;
   post_type: string;
   district: string;
   monthly_rent: number;
@@ -88,8 +89,11 @@ export default function PostDetail() {
     setError("");
 
     try {
+      const token = await getToken();
+      const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
+
       const [{ data: postRes }, { data: userRes }] = await Promise.all([
-        axios.get(`${API}/posts/${id}`),
+        axios.get(`${API}/posts/${id}`, headers ? { headers } : undefined),
         supabase.auth.getUser(),
       ]);
 
@@ -242,7 +246,9 @@ export default function PostDetail() {
             <Info label="Gender Preference" value={post.gender_preference || "No Preference"} />
             <div style={styles.infoItem}>
               <p style={styles.infoLabel}>Full Address</p>
-              <p style={styles.privateAddress}>Visible after matching</p>
+              <p style={post.full_address ? styles.infoValue : styles.privateAddress}>
+                {post.full_address || "Visible after matching"}
+              </p>
             </div>
           </div>
         </section>

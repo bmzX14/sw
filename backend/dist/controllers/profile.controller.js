@@ -3,10 +3,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getMyProfile = getMyProfile;
 exports.updateMyProfile = updateMyProfile;
 const supabaseAdmin_1 = require("../lib/supabaseAdmin");
+// Profile controller for hydrating and updating the current user's profile.
 function isBlank(value) {
     return !value || !value.trim();
 }
-// Controller function to get the current user's profile
+// Return the current profile, creating a baseline row when needed.
 async function getMyProfile(req, res) {
     const userId = req.user.id;
     const metadata = req.user?.metadata ?? {};
@@ -72,10 +73,10 @@ async function getMyProfile(req, res) {
     }
     return res.json(updatedProfile);
 }
-// Controller function to update the current user's profile
+// Update editable profile fields for the current user.
 async function updateMyProfile(req, res) {
     const userId = req.user.id;
-    const { name, university, nationality, budget_min, budget_max, lifestyle_tags, language_spoken, profile_photo, student_id_doc, } = req.body;
+    const { name, university, nationality, budget_min, budget_max, lifestyle_tags, language_spoken, profile_photo, student_id_doc, is_verified, } = req.body;
     const { data: existingProfile, error: selectError } = await supabaseAdmin_1.supabaseAdmin
         .from("users")
         .select("student_id_doc,is_verified")
@@ -87,6 +88,11 @@ async function updateMyProfile(req, res) {
     const studentDocChanged = typeof student_id_doc === "string" &&
         student_id_doc.length > 0 &&
         student_id_doc !== existingProfile?.student_id_doc;
+    const nextVerifiedStatus = studentDocChanged
+        ? true
+        : typeof is_verified === "boolean"
+            ? is_verified
+            : existingProfile?.is_verified ?? false;
     const { data, error } = await supabaseAdmin_1.supabaseAdmin
         .from("users")
         .update({
@@ -99,7 +105,7 @@ async function updateMyProfile(req, res) {
         language_spoken,
         profile_photo,
         student_id_doc,
-        is_verified: studentDocChanged ? false : existingProfile?.is_verified ?? false,
+        is_verified: nextVerifiedStatus,
     })
         .eq("id", userId)
         .select("*")

@@ -3,10 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getMessages = getMessages;
 exports.sendMessage = sendMessage;
 const supabaseAdmin_1 = require("../lib/supabaseAdmin");
-// Handles chat messages between matched users
-// Only users who are part of a match can send/receive messages
-// GET /api/messages/:matchId
-// Get all messages for a specific match
+// Messaging controller for accepted-match conversations.
+// Return all messages for an accepted match that includes the current user.
 async function getMessages(req, res) {
     const userId = req.user.id;
     const { matchId } = req.params;
@@ -39,8 +37,7 @@ async function getMessages(req, res) {
         return res.status(500).json({ message: err.message || "Failed to fetch messages." });
     }
 }
-// POST /api/messages/:matchId
-// Send a new message to a match
+// Send a new message into an accepted match.
 async function sendMessage(req, res) {
     const userId = req.user.id;
     const { matchId } = req.params;

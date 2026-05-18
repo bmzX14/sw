@@ -96,6 +96,7 @@ export default function PostEdit() {
     moveInDate: "",
     genderPreference: "No Preference",
     descriptionEn: "",
+    descriptionKo: "",
   });
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [existingPhotos, setExistingPhotos] = useState<string[]>([]);
@@ -127,6 +128,7 @@ export default function PostEdit() {
         moveInDate: data.available_from || "",
         genderPreference: data.gender_preference || "No Preference",
         descriptionEn: data.description_en || "",
+        descriptionKo: data.description_ko || "",
       });
       const photos = normalizePhotos(data.photos);
       setSelectedTags(data.lifestyle_tags || []);
@@ -218,7 +220,7 @@ export default function PostEdit() {
         gender_preference: form.genderPreference,
         lifestyle_tags: selectedTags,
         description_en: form.descriptionEn,
-        description_ko: form.descriptionEn,
+        description_ko: form.descriptionKo,
         photos: nextPhotos,
       }, {
         headers: { Authorization: `Bearer ${token}` },

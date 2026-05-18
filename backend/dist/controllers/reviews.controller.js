@@ -3,10 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.submitReview = submitReview;
 exports.getReviews = getReviews;
 const supabaseAdmin_1 = require("../lib/supabaseAdmin");
-// Handles submitting and getting reviews
-// Users can only review someone they were matched with
-// POST /api/reviews
-// Submit a review after a match
+// Review controller for roommate ratings after accepted matches.
+// Submit one review for the other user in an accepted match.
 async function submitReview(req, res) {
     const reviewerId = req.user.id;
     const { reviewee_id, match_id, rating, comment } = req.body;
@@ -64,15 +62,14 @@ async function submitReview(req, res) {
         return res.status(500).json({ message: err.message || "Failed to submit review." });
     }
 }
-// GET /api/reviews/:userId
-// Get all reviews for a specific user with average rating
+// Return all public reviews for a user plus summary stats.
 async function getReviews(req, res) {
     const { userId } = req.params;
     try {
         const { data, error } = await supabaseAdmin_1.supabaseAdmin
             .from("reviews")
             .select(`
-            id, rating, comment, created_at,
+            id, match_id, rating, comment, created_at,
             users!reviewer_id ( name, profile_photo )
         `)
             .eq("reviewee_id", userId)

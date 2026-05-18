@@ -3,12 +3,12 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const auth_controller_1 = require("../controllers/auth.controller");
 const auth_middleware_1 = require("../middleware/auth.middleware");
-//handles user registration, loging and logout
+// Authentication endpoints: register, login, and logout.
 const router = (0, express_1.Router)();
-//Register  new user
+// Create a new account and trigger email verification.
 router.post("/register", auth_controller_1.register);
-//Login user and return JWT token
+// Exchange email/password for a Supabase session.
 router.post("/login", auth_controller_1.login);
-//Logout user (requires auth)
+// Protected logout endpoint kept for future server-side session handling.
 router.post("/logout", auth_middleware_1.requireAuth, auth_controller_1.logout);
 exports.default = router;

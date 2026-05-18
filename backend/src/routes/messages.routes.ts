@@ -2,17 +2,14 @@ import { Router } from "express";
 import { getMessages, sendMessage } from "../controllers/messages.controller";
 import { requireAuth } from "../middleware/auth.middleware";
 
-
-// Handles chat messages between matched users
-// All routes require authentication
-
+// Messaging endpoints for users inside accepted matches.
 
 const router = Router();
 
-// Get all messages for a specific match
+// Read all messages in one accepted match.
 router.get("/:matchId", requireAuth, getMessages);
 
-// Send a new message to a match
+// Send a new message into one accepted match.
 router.post("/:matchId", requireAuth, sendMessage);
 
 export default router;

@@ -3,7 +3,7 @@
 
 import axios from "axios";
 import type { CSSProperties, FormEvent } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API } from "../lib/api";
 import { supabase } from "../lib/supabase";
@@ -45,6 +45,7 @@ type Message = {
     text: string;
     createdAt: string;
     sender_id?: string;
+    pending?: boolean;
 };
 
 
@@ -66,10 +67,110 @@ export default function Chat() {
   // Ref for auto-scrolling to latest message
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  const replacePendingMessage = useCallback((incoming: Message) => {
+    setMessages((prev) => {
+      const existingRealMessage = prev.find((message) => message.id === incoming.id);
+      if (existingRealMessage) {
+        return prev;
+      }
+
+      const pendingIndex = prev.findIndex((message) =>
+        message.pending &&
+        message.conversationId === incoming.conversationId &&
+        message.sender_id === incoming.sender_id &&
+        message.text === incoming.text
+      );
+
+      if (pendingIndex === -1) {
+        return [...prev, incoming];
+      }
+
+      const next = [...prev];
+      next[pendingIndex] = incoming;
+      return next;
+    });
+  }, []);
+
+  const fetchConversations = useCallback(async (user: any) => {
+    try {
+      const token = await getToken();
+      const headers = { Authorization: `Bearer ${token}` };
+
+      const { data: allMatches } = await axios.get(`${API}/matches/accepted`, { headers });
+
+      const convs: Conversation[] = allMatches.map((match: any) => {
+        const isRequester = match.requester_id === user.id;
+        const opponent = isRequester ? match.owner : match.requester;
+        return {
+          id: match.id,
+          opponentName: opponent?.name || "Roomie",
+          opponentUniversity: opponent?.university || "",
+          opponentPhoto: opponent?.profile_photo || "",
+          postTitle: match.posts?.district
+            ? `${match.posts.post_type} · ${match.posts.district}`
+            : "Matched Post",
+          postId: match.post_id,
+          lastMessage: "Click to start chatting",
+          unreadCount: 0,
+          updatedAt: new Date(match.created_at).toLocaleDateString(),
+        };
+      });
+
+      setConversations(convs);
+      if (convs.length > 0) setSelectedConversationId(convs[0].id);
+    } catch (err) {
+      console.error("Failed to fetch conversations", err);
+    }
+  }, []);
+
+  const fetchMessages = useCallback(async (matchId: string) => {
+    try {
+      const token = await getToken();
+      const { data } = await axios.get(`${API}/messages/${matchId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const formatted: Message[] = data.map((msg: any) => ({
+        id: msg.id,
+        conversationId: matchId,
+        sender: msg.sender_id === currentUser?.id ? "me" : "opponent",
+        senderName: msg.sender_id === currentUser?.id ? "Me" : msg.users?.name || "Roomie",
+        text: msg.content,
+        createdAt: new Date(msg.created_at).toLocaleTimeString([], {
+          hour: "2-digit", minute: "2-digit"
+        }),
+        sender_id: msg.sender_id,
+      }));
+
+      setMessages(prev => [
+        ...prev.filter(m => m.conversationId !== matchId),
+        ...formatted,
+      ]);
+
+      if (formatted.length > 0) {
+        const last = formatted[formatted.length - 1];
+        setConversations(prev => prev.map(c =>
+          c.id === matchId ? { ...c, lastMessage: last.text } : c
+        ));
+      }
+    } catch (err) {
+      console.error("Failed to fetch messages", err);
+    }
+  }, [currentUser]);
+
+  const initChat = useCallback(async () => {
+    const user = await getCurrentUser();
+    if (!user) { navigate("/login"); return; }
+    setCurrentUser(user);
+    currentUserRef.current = user;
+    await fetchConversations(user);
+    setLoading(false);
+  }, [fetchConversations, navigate]);
+
   //  Initialize on mount 
-    useEffect(() => {
+  useEffect(() => {
     initChat();
-    }, []);
+  }, [initChat]);
 
   // Fetch messages when conversation changes ──
     useEffect(() => {
@@ -100,10 +201,7 @@ export default function Chat() {
     sender_id: newMsg.sender_id,
       };
 
-      setMessages(prev => {
-        if (prev.find(m => m.id === formatted.id)) return prev;
-        return [...prev, formatted];
-      });
+      replacePendingMessage(formatted);
 
       setConversations(prev => prev.map(c =>
         c.id === selectedConversationId ? {
@@ -119,96 +217,12 @@ export default function Chat() {
   return () => {
     supabase.removeChannel(channel);
   };
-}, [selectedConversationId, currentUser]);
+}, [fetchMessages, replacePendingMessage, selectedConversationId, currentUser]);
 
   // Auto scroll to latest message 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [messages]);
-
-
-  // Functions
-
-  // Initialize: get current user and fetch all accepted matches
-    const initChat = async () => {
-        const user = await getCurrentUser();
-        if (!user) { navigate("/login"); return; }
-        setCurrentUser(user);
-        currentUserRef.current = user; 
-        await fetchConversations(user);
-        setLoading(false);
-         // subscription will auto-trigger because currentUser state changed
-    };
-
-  // Fetch accepted matches and convert to conversation format
-const fetchConversations = async (user: any) => {
-    try {
-        const token = await getToken();
-        const headers = { Authorization: `Bearer ${token}` };
-
-        const { data: allMatches } = await axios.get(`${API}/matches/accepted`, { headers });
-
-      // Convert matches to conversation format
-        const convs: Conversation[] = allMatches.map((match: any) => {
-            const isRequester = match.requester_id === user.id;
-            const opponent = isRequester ? match.owner : match.requester;
-            return {
-            id: match.id,
-            opponentName: opponent?.name || "Roomie",
-            opponentUniversity: opponent?.university || "",
-            opponentPhoto: opponent?.profile_photo || "",
-            postTitle: match.posts?.district
-                ? `${match.posts.post_type} · ${match.posts.district}`
-                : "Matched Post",
-            postId: match.post_id,
-            lastMessage: "Click to start chatting",
-            unreadCount: 0,
-            updatedAt: new Date(match.created_at).toLocaleDateString(),
-            };
-        });
-
-        setConversations(convs);
-        if (convs.length > 0) setSelectedConversationId(convs[0].id);
-        } catch (err) {
-        console.error("Failed to fetch conversations", err);
-        }
-    };
-
-  // Fetch messages for a match from Express backend
-    const fetchMessages = async (matchId: string) => {
-        try {
-        const token = await getToken();
-        const { data } = await axios.get(`${API}/messages/${matchId}`, {
-            headers: { Authorization: `Bearer ${token}` }
-        });
-
-        const formatted: Message[] = data.map((msg: any) => ({
-            id: msg.id,
-            conversationId: matchId,
-            sender: msg.sender_id === currentUser?.id ? "me" : "opponent",
-            senderName: msg.sender_id === currentUser?.id ? "Me" : msg.users?.name || "Roomie",
-            text: msg.content,
-            createdAt: new Date(msg.created_at).toLocaleTimeString([], {
-            hour: "2-digit", minute: "2-digit"
-            }),
-            sender_id: msg.sender_id,
-        }));
-
-        setMessages(prev => [
-            ...prev.filter(m => m.conversationId !== matchId),
-            ...formatted,
-        ]);
-
-        if (formatted.length > 0) {
-            const last = formatted[formatted.length - 1];
-            setConversations(prev => prev.map(c =>
-            c.id === matchId ? { ...c, lastMessage: last.text } : c
-            ));
-        }
-        } catch (err) {
-        console.error("Failed to fetch messages", err);
-        }
-    };
 
     // Select conversation and clear unread count
     const selectConversation = (conversationId: string) => {
@@ -238,18 +252,31 @@ const fetchConversations = async (user: any) => {
       hour: "2-digit", minute: "2-digit"
     }),
     sender_id: currentUserRef.current?.id,
+    pending: true,
   };
   setMessages(prev => [...prev, tempMessage]);
 
   try {
     const token = await getToken();
-    await axios.post(
+    const { data } = await axios.post(
       `${API}/messages/${selectedConversationId}`,
       { content: trimmedText },
       { headers: { Authorization: `Bearer ${token}` } }
     );
-    // Supabase Realtime will add the real message
-    // Remove temp message when real one arrives via deduplication
+
+    const confirmedMessage: Message = {
+      id: data.id,
+      conversationId: selectedConversationId,
+      sender: data.sender_id === currentUserRef.current?.id ? "me" : "opponent",
+      senderName: data.sender_id === currentUserRef.current?.id ? "Me" : "Roomie",
+      text: data.content,
+      createdAt: new Date(data.created_at).toLocaleTimeString([], {
+        hour: "2-digit", minute: "2-digit"
+      }),
+      sender_id: data.sender_id,
+    };
+
+    replacePendingMessage(confirmedMessage);
   } catch (err) {
     console.error("Failed to send message", err);
     setInputValue(trimmedText);

@@ -2,17 +2,14 @@ import { Router } from "express";
 import { getReviews, submitReview } from "../controllers/reviews.controller";
 import { requireAuth } from "../middleware/auth.middleware";
 
-
-// Handles submitting and getting reviews
-// Submit requires auth, getting reviews is public
-
+// Review endpoints for roommate feedback after accepted matches.
 
 const router = Router();
 
-// Submit a review after a match (auth required)
+// Submit a review for the other user in an accepted match.
 router.post("/", requireAuth, submitReview);
 
-// Get all reviews for a specific user (public)
+// Read public reviews for a given user profile.
 router.get("/:userId", getReviews);
 
 export default router;

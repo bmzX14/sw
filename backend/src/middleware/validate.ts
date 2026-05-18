@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 
+// Ensure required request body fields exist before reaching the controller.
 export function validate(requiredFields: string[]) {
     return (req: Request, res: Response, next: NextFunction) => {
         const missing = requiredFields.filter((field) => !req.body[field]);

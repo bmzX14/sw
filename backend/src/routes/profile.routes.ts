@@ -1,16 +1,15 @@
 import { Router } from "express";
 import { getMyProfile, updateMyProfile } from "../controllers/profile.controller";
 import { requireAuth } from "../middleware/auth.middleware";
-//Handles getting and updating user profiles
-//all routes require authentication
+
+// Profile endpoints for reading and updating the current user.
 
 const router = Router();
 
-//get current user's profile
-
+// Return the signed-in user's profile row.
 router.get("/profile", requireAuth, getMyProfile);
 
-//update current user's profile
+// Update editable profile fields for the signed-in user.
 router.put("/profile", requireAuth, updateMyProfile);
 
 export default router;

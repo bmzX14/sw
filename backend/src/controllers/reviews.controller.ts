@@ -2,12 +2,9 @@ import { Request, Response } from "express";
 import { supabaseAdmin } from "../lib/supabaseAdmin";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 
+// Review controller for roommate ratings after accepted matches.
 
-// Handles submitting and getting reviews
-// Users can only review someone they were matched with
-
-// POST /api/reviews
-// Submit a review after a match
+// Submit one review for the other user in an accepted match.
 export async function submitReview(req: AuthenticatedRequest, res: Response) {
     const reviewerId = req.user!.id;
     const { reviewee_id, match_id, rating, comment } = req.body;
@@ -76,16 +73,15 @@ export async function submitReview(req: AuthenticatedRequest, res: Response) {
     }
     }
 
-    // GET /api/reviews/:userId
-    // Get all reviews for a specific user with average rating
-    export async function getReviews(req: Request, res: Response) {
+// Return all public reviews for a user plus summary stats.
+export async function getReviews(req: Request, res: Response) {
     const { userId } = req.params;
 
     try {
         const { data, error } = await supabaseAdmin
         .from("reviews")
         .select(`
-            id, rating, comment, created_at,
+            id, match_id, rating, comment, created_at,
             users!reviewer_id ( name, profile_photo )
         `)
         .eq("reviewee_id", userId)

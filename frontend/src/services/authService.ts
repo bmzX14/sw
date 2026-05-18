@@ -46,14 +46,6 @@ export async function loginUser(form: LoginForm) {
 
 // Function to handle user logout
 export async function logoutUser() {
-  const { data: { session } } = await supabase.auth.getSession();
-
-  if (session?.access_token) {
-    await axios.post(`${API}/auth/logout`, {}, {
-      headers: { Authorization: `Bearer ${session.access_token}` },
-    });
-  }
-
   await supabase.auth.signOut();
 
   localStorage.removeItem("access_token");
