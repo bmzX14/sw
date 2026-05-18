@@ -14,10 +14,45 @@ async function requireAuth(req, res, next) {
         if (error || !user) {
             return res.status(401).json({ message: "Unauthorized." });
         }
+        const normalizedEmail = user.email?.trim().toLowerCase() ?? "";
+        let appUserId = user.id;
+        const { data: userRowById, error: userRowByIdError } = await supabaseAdmin_1.supabaseAdmin
+            .from("users")
+            .select("id")
+            .eq("id", user.id)
+            .maybeSingle();
+        if (userRowByIdError) {
+            return res.status(500).json({ message: "Failed to resolve app user." });
+        }
+        if (userRowById?.id) {
+            appUserId = userRowById.id;
+        }
+        else if (normalizedEmail) {
+            const { data: userRowByEmail, error: userRowByEmailError } = await supabaseAdmin_1.supabaseAdmin
+                .from("users")
+                .select("id")
+                .ilike("email", normalizedEmail)
+                .maybeSingle();
+            if (userRowByEmailError) {
+                return res.status(500).json({ message: "Failed to resolve app user." });
+            }
+            if (userRowByEmail?.id) {
+                appUserId = userRowByEmail.id;
+            }
+        }
         req.user = {
-            id: user.id,
+            id: appUserId,
+            authId: user.id,
             email: user.email,
             metadata: user.user_metadata ?? {},
+            identities: (user.identities ?? []).map((identity) => ({
+                provider: identity.provider,
+                identity_data: identity.identity_data &&
+                    typeof identity.identity_data === "object" &&
+                    !Array.isArray(identity.identity_data)
+                    ? identity.identity_data
+                    : {},
+            })),
         };
         next();
     }

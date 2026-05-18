@@ -7,19 +7,43 @@ const supabaseAdmin_1 = require("../lib/supabaseAdmin");
 function isBlank(value) {
     return !value || !value.trim();
 }
+function pickFirstText(...values) {
+    for (const value of values) {
+        if (typeof value === "string" && value.trim()) {
+            return value.trim();
+        }
+    }
+    return "";
+}
+function buildFallbackName(email) {
+    const localPart = email.split("@")[0]?.trim();
+    if (!localPart) {
+        return "Roomies User";
+    }
+    const normalized = localPart.replace(/[._-]+/g, " ").trim();
+    if (!normalized) {
+        return "Roomies User";
+    }
+    return normalized.replace(/\b\w/g, (char) => char.toUpperCase());
+}
 // Return the current profile, creating a baseline row when needed.
 async function getMyProfile(req, res) {
     const userId = req.user.id;
     const metadata = req.user?.metadata ?? {};
+    const emailFromAuth = pickFirstText(req.user?.email, metadata.email);
+    const socialIdentity = req.user?.identities?.find((identity) => identity.provider === "google" || identity.provider === "kakao");
+    const identityData = socialIdentity?.identity_data ?? {};
+    const nameFromAuth = pickFirstText(identityData.full_name, identityData.name, identityData.display_name, identityData.nickname, metadata.full_name, metadata.name, metadata.user_name, metadata.nickname) || buildFallbackName(emailFromAuth);
+    const avatarFromAuth = pickFirstText(identityData.avatar_url, identityData.picture, identityData.profile_image, identityData.profile_image_url, identityData.thumbnail_image_url, identityData.photo_url, metadata.avatar_url, metadata.picture, metadata.profile_image, metadata.profile_image_url, metadata.thumbnail_image_url, metadata.photo_url) || null;
     const baseProfile = {
         id: userId,
-        email: req.user?.email ?? "",
-        name: metadata.name ?? "",
+        email: emailFromAuth,
+        name: nameFromAuth,
         university: metadata.university ?? "",
         nationality: metadata.nationality ?? "",
         budget_min: null,
         budget_max: null,
-        profile_photo: null,
+        profile_photo: avatarFromAuth,
         student_id_doc: null,
         is_verified: false,
         lifestyle_tags: [],
@@ -55,11 +79,15 @@ async function getMyProfile(req, res) {
         nationality: isBlank(existingProfile.nationality)
             ? baseProfile.nationality
             : existingProfile.nationality,
+        profile_photo: isBlank(existingProfile.profile_photo)
+            ? baseProfile.profile_photo
+            : existingProfile.profile_photo,
     };
     const needsHydration = hydratedProfile.email !== existingProfile.email ||
         hydratedProfile.name !== existingProfile.name ||
         hydratedProfile.university !== existingProfile.university ||
-        hydratedProfile.nationality !== existingProfile.nationality;
+        hydratedProfile.nationality !== existingProfile.nationality ||
+        hydratedProfile.profile_photo !== existingProfile.profile_photo;
     if (!needsHydration) {
         return res.json(existingProfile);
     }

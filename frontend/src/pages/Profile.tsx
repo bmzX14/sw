@@ -44,7 +44,11 @@ export default function Profile() {
       setProfile(data);
     } catch (err: any) {
       console.error("FETCH PROFILE ERROR:", err);
-      setError(err.message || "Failed to load profile.");
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to load profile."
+      );
     } finally {
       setLoading(false);
     }
@@ -175,7 +179,11 @@ export default function Profile() {
       setStudentIdFile(null);
     } catch (err: any) {
       console.error("SAVE PROFILE ERROR:", err);
-      setError(err.message || "Failed to save profile. Please try again.");
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          "Failed to save profile. Please try again."
+      );
     } finally {
       setSaving(false);
     }

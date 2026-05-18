@@ -44,6 +44,20 @@ export async function loginUser(form: LoginForm) {
   return data.user;
 }
 
+// Function to start a Supabase OAuth flow for social login
+export async function loginWithSocialProvider(provider: "google" | "kakao") {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo: `${window.location.origin}/profile`,
+    },
+  });
+
+  if (error) {
+    throw error;
+  }
+}
+
 // Function to handle user logout
 export async function logoutUser() {
   await supabase.auth.signOut();
