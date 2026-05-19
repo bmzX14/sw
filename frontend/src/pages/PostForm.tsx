@@ -61,15 +61,26 @@ const postTypeMap: Record<string, string> = {
   "Contract Transfer": "lease_takeover",
 };
 
+const roomTypeOptions = [
+  { label: "No Preference", value: "" },
+  { label: "Studio", value: "studio" },
+  { label: "One Room", value: "one_room" },
+  { label: "Officetel", value: "officetel" },
+  { label: "Apartment", value: "apartment" },
+  { label: "Shared House", value: "shared_house" },
+];
+
 const initialForm = {
   postType: "Room Available",
   title: "",
   region: "",
   address: "",
   nearUniversity: "",
+  roomType: "",
   rent: "",
   deposit: "",
   moveInDate: "",
+  moveOutDate: "",
   genderPreference: "No Preference",
   descriptionKo: "",
   descriptionEn: "",
@@ -178,9 +189,11 @@ export default function PostForm() {
         district: form.region,
         full_address: form.address,               // Hidden until match
         near_university: form.nearUniversity,
+        room_type: form.roomType || null,
         monthly_rent: Number(form.rent),
         deposit: Number(form.deposit),
         available_from: form.moveInDate,
+        available_until: form.moveOutDate || null,
         gender_preference: form.genderPreference,
         lifestyle_tags: selectedTags,
         description_en: form.descriptionEn,
@@ -285,15 +298,33 @@ export default function PostForm() {
                   placeholder="e.g. 10 min walk to Myongji" />
               </div>
             </div>
+
+            <div style={styles.grid2}>
+              <div style={styles.fieldGroup}>
+                <label style={styles.label}>Room Type</label>
+                <select
+                  name="roomType"
+                  value={form.roomType}
+                  onChange={handleChange}
+                  style={styles.select}
+                >
+                  {roomTypeOptions.map((option) => (
+                    <option key={option.value || "empty"} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
 
           <div style={styles.divider} />
 
-          {/* ── Budget & Move-in ── */}
+          {/* ── Budget & Dates ── */}
           <div style={styles.section}>
-            <p style={styles.sectionLabel}>Budget & Move-in</p>
+            <p style={styles.sectionLabel}>Budget & Dates</p>
 
-            <div style={styles.grid3}>
+            <div style={styles.grid4}>
               <div style={styles.fieldGroup}>
                 <label style={styles.label}>Monthly Rent (10,000 KRW)</label>
                 <input name="rent" type="number" min="0"
@@ -313,6 +344,17 @@ export default function PostForm() {
                 <input name="moveInDate" type="date"
                   value={form.moveInDate} onChange={handleChange}
                   style={styles.input} />
+              </div>
+
+              <div style={styles.fieldGroup}>
+                <label style={styles.label}>Move-out Date</label>
+                <input
+                  name="moveOutDate"
+                  type="date"
+                  value={form.moveOutDate}
+                  onChange={handleChange}
+                  style={styles.input}
+                />
               </div>
             </div>
             <p style={styles.hint}>Enter rent and deposit in units of 10,000 KRW.</p>
@@ -439,6 +481,7 @@ const styles: Record<string, CSSProperties> = {
   sectionLabel: { fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: "#aaa", marginBottom: 18 },
   grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 18 },
   grid3: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24 },
+  grid4: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 24 },
   fieldGroup: { display: "flex", flexDirection: "column", gap: 6, marginBottom: 18 },
   label: { fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "#bbb" },
   input: { border: "none", borderBottom: "1.5px solid #ddd", padding: "8px 0", fontSize: 14, fontFamily: "'Georgia', serif", color: "#1a1a1a", background: "transparent", outline: "none", width: "100%" },

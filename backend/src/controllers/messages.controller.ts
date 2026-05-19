@@ -4,7 +4,8 @@ import { AuthenticatedRequest } from "../middleware/auth.middleware";
 
 // Messaging controller for accepted-match conversations.
 
-// Return all messages for an accepted match that includes the current user.
+// GET /api/messages/:matchId
+// Get all messages for a specific match
 export async function getMessages(req: AuthenticatedRequest, res: Response) {
     const userId = req.user!.id;
     const { matchId } = req.params;
@@ -41,7 +42,8 @@ export async function getMessages(req: AuthenticatedRequest, res: Response) {
     }
     }
 
-// Send a new message into an accepted match.
+// POST /api/messages/:matchId
+// Send a new message to a match
 export async function sendMessage(req: AuthenticatedRequest, res: Response) {
     const userId = req.user!.id;
     const { matchId } = req.params;
@@ -86,49 +88,42 @@ export async function sendMessage(req: AuthenticatedRequest, res: Response) {
     }
 }
 
-// Delete one of the current user's own messages from an accepted match.
-export async function deleteMessage(req: AuthenticatedRequest, res: Response) {
+//DELETE /api/message/:matchId/:messageId
+//unsend - delete message from DB for everyone
+//only the original sender can unsend
+export async function unsendMessage(req: AuthenticatedRequest, res: Response) {
     const userId = req.user!.id;
-    const { messageId } = req.params;
-
+    const {  messageId } = req.params;
+    console.log("Unsend called:", { messageId, userId });
     try {
-        const { data: message, error: messageError } = await supabaseAdmin
-        .from("messages")
-        .select("id, match_id, sender_id")
-        .eq("id", messageId)
-        .maybeSingle();
-
-        if (messageError) throw messageError;
-
-        if (!message) {
-        return res.status(404).json({ message: "Message not found." });
+        //Check message exists and belongs to this match
+        const { data: message, error: msgError } = await supabaseAdmin
+            .from("messages")
+            .select("id, sender_id, match_id")
+            .eq("id", messageId)
+            .maybeSingle();
+        console.log("Message found:", message); 
+        console.log("Message error:", msgError);
+        if (msgError || !message) {
+            return res.status(404).json({ message: "Message not found." });
         }
-
-        const { data: match, error: matchError } = await supabaseAdmin
-        .from("matches")
-        .select("id, requester_id, owner_id, status")
-        .eq("id", message.match_id)
-        .eq("status", "accepted")
-        .or(`requester_id.eq.${userId},owner_id.eq.${userId}`)
-        .maybeSingle();
-
-        if (matchError || !match) {
-        return res.status(403).json({ message: "Not authorized to delete this message." });
-        }
-
+        //only sender can unsend their own message
         if (message.sender_id !== userId) {
-        return res.status(403).json({ message: "You can only delete your own messages." });
+            return res.status(403).json({ message: " You can only unsend your own message." });
+
         }
 
+
+        //delete from db, supabase realtime fires DELETE event to all subscribers
         const { error: deleteError } = await supabaseAdmin
-        .from("messages")
-        .delete()
-        .eq("id", messageId);
+            .from("messages")
+            .delete()
+            .eq("id", messageId);
 
         if (deleteError) throw deleteError;
+        return res.json({ message: "Message unsent successfully.", id: messageId });
 
-        return res.status(204).send();
     } catch (err: any) {
-        return res.status(500).json({ message: err.message || "Failed to delete message." });
+        return res.status(500).json({ message: err.message || "Failed to unsend message." });
     }
 }

@@ -1,6 +1,8 @@
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
+import { unsendMessage } from "./controllers/messages.controller";
+import { requireAuth } from "./middleware/auth.middleware";
 import { errorHandler } from "./middleware/error.middleware";
 import authRoutes from "./routes/auth.routes";
 import matchesRoutes from "./routes/matches.routes";
@@ -11,10 +13,10 @@ import reviewsRoutes from "./routes/reviews.routes";
 
 dotenv.config();
 
-// Create the Express application and wire shared middleware.
-export const app = express();
+const app = express();
+const PORT = process.env.PORT || 5000;
 
-// Allow the frontend app to call the API from the browser during development.
+// ── CORS — must be first before everything ──
 app.use((req, res, next) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
@@ -29,19 +31,31 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Lightweight health check for quick API verification.
-app.get("/", (_req, res) => {
-  res.json({ message: "RoomieKorea API is running!" });
+// ── Routes ──
+app.get("/", (req, res) => {
+  res.json({ message: "RoomieKorea API is running! 🏠" });
 });
 
-// Mount feature-based API modules.
 app.use("/api/auth", authRoutes);
 app.use("/api/users", profileRoutes);
 app.use("/api/posts", postsRoutes);
 app.use("/api/matches", matchesRoutes);
+app.delete("/api/messages/:messageId",requireAuth,
+  (req, res, next) => {
+  console.log("🔴 Direct DELETE hit!", req.params.messageId);
+  next();
+},unsendMessage);
+
 app.use("/api/messages", messagesRoutes);
+app.use("/api/messages", messagesRoutes);
+console.log("Messages routes registered")
 app.use("/api/reviews", reviewsRoutes);
 
-app.use(errorHandler);
 
-export default app;
+app.use(errorHandler);
+console.log("Registering messages routes...");
+app.listen(PORT, () => {
+  console.log(` Server running on http://localhost:${PORT}`);
+});
+
+export { app };

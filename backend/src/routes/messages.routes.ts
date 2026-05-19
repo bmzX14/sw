@@ -1,6 +1,6 @@
 import { Router } from "express";
 import {
-  deleteMessage,
+  unsendMessage,
   getMessages,
   sendMessage,
 } from "../controllers/messages.controller";
@@ -16,7 +16,7 @@ router.get("/:matchId", requireAuth, getMessages);
 // Send a new message into one accepted match.
 router.post("/:matchId", requireAuth, sendMessage);
 
-// Delete one of the current user's own messages.
-router.delete("/:messageId", requireAuth, deleteMessage);
+// Delete/unsend one of the current user's own messages.
+router.delete("/:messageId", requireAuth, unsendMessage);
 
 export default router;

@@ -11,9 +11,11 @@ type DbPost = {
   full_address?: string;
   post_type: string;
   district: string;
+  room_type?: string | null;
   monthly_rent: number;
   deposit: number;
   available_from: string;
+  available_until?: string | null;
   gender_preference: string;
   lifestyle_tags: string[];
   description_en: string;
@@ -35,6 +37,20 @@ const postTypeLabels: Record<string, string> = {
   sublet: "Short-term Rental",
   lease_takeover: "Contract Transfer",
 };
+
+const roomTypeLabels: Record<string, string> = {
+  studio: "Studio",
+  one_room: "One Room",
+  officetel: "Officetel",
+  apartment: "Apartment",
+  shared_house: "Shared House",
+};
+
+function formatDate(value?: string | null) {
+  if (!value) return "-";
+
+  return new Date(value).toLocaleDateString("en-CA");
+}
 
 function normalizePhotos(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -240,9 +256,21 @@ export default function PostDetail() {
           <p style={styles.sectionLabel}>Room Information</p>
           <div style={styles.infoGrid}>
             <Info label="Region" value={post.district} />
+            <Info
+              label="Room Type"
+              value={
+                post.room_type
+                  ? roomTypeLabels[post.room_type] || post.room_type
+                  : "No Preference"
+              }
+            />
             <Info label="Monthly Rent" value={`${post.monthly_rent}0,000 KRW`} />
             <Info label="Deposit" value={`${post.deposit || 0}0,000 KRW`} />
-            <Info label="Move-in Date" value={post.available_from || "-"} />
+            <Info label="Move-in Date" value={formatDate(post.available_from)} />
+            <Info
+              label="Move-out Date"
+              value={formatDate(post.available_until)}
+            />
             <Info label="Gender Preference" value={post.gender_preference || "No Preference"} />
             <div style={styles.infoItem}>
               <p style={styles.infoLabel}>Full Address</p>

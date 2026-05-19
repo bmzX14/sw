@@ -48,6 +48,15 @@ const postTypeLabels: Record<string, string> = {
   lease_takeover: "Contract Transfer",
 };
 
+const roomTypeOptions = [
+  { label: "No Preference", value: "" },
+  { label: "Studio", value: "studio" },
+  { label: "One Room", value: "one_room" },
+  { label: "Officetel", value: "officetel" },
+  { label: "Apartment", value: "apartment" },
+  { label: "Shared House", value: "shared_house" },
+];
+
 function normalizePhotos(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
@@ -91,9 +100,11 @@ export default function PostEdit() {
     region: "",
     address: "",
     nearUniversity: "",
+    roomType: "",
     rent: "",
     deposit: "",
     moveInDate: "",
+    moveOutDate: "",
     genderPreference: "No Preference",
     descriptionEn: "",
     descriptionKo: "",
@@ -123,9 +134,11 @@ export default function PostEdit() {
         region: data.district || "",
         address: data.full_address || "",
         nearUniversity: data.near_university || "",
+        roomType: data.room_type || "",
         rent: String(data.monthly_rent || ""),
         deposit: String(data.deposit || ""),
         moveInDate: data.available_from || "",
+        moveOutDate: data.available_until || "",
         genderPreference: data.gender_preference || "No Preference",
         descriptionEn: data.description_en || "",
         descriptionKo: data.description_ko || "",
@@ -214,9 +227,11 @@ export default function PostEdit() {
         district: form.region,
         full_address: form.address,
         near_university: form.nearUniversity,
+        room_type: form.roomType || null,
         monthly_rent: Number(form.rent),
         deposit: Number(form.deposit || 0),
         available_from: form.moveInDate,
+        available_until: form.moveOutDate || null,
         gender_preference: form.genderPreference,
         lifestyle_tags: selectedTags,
         description_en: form.descriptionEn,
@@ -293,13 +308,31 @@ export default function PostEdit() {
                 <input aria-label="Near University" name="nearUniversity" value={form.nearUniversity} onChange={handleChange} style={styles.input} />
               </Field>
             </div>
+
+            <div style={styles.grid2}>
+              <Field label="Room Type">
+                <select
+                  aria-label="Room Type"
+                  name="roomType"
+                  value={form.roomType}
+                  onChange={handleChange}
+                  style={styles.select}
+                >
+                  {roomTypeOptions.map((option) => (
+                    <option key={option.value || "empty"} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
           </div>
 
           <div style={styles.divider} />
 
           <div style={styles.section}>
-            <p style={styles.sectionLabel}>Budget & Move-in</p>
-            <div style={styles.grid3}>
+            <p style={styles.sectionLabel}>Budget & Dates</p>
+            <div style={styles.grid4}>
               <Field label="Monthly Rent (10,000 KRW)">
                 <input aria-label="Monthly Rent" name="rent" type="number" min="0" value={form.rent} onChange={handleChange} style={styles.input} />
               </Field>
@@ -308,6 +341,9 @@ export default function PostEdit() {
               </Field>
               <Field label="Move-in Date">
                 <input aria-label="Move-in Date" name="moveInDate" type="date" value={form.moveInDate} onChange={handleChange} style={styles.input} />
+              </Field>
+              <Field label="Move-out Date">
+                <input aria-label="Move-out Date" name="moveOutDate" type="date" value={form.moveOutDate} onChange={handleChange} style={styles.input} />
               </Field>
             </div>
           </div>
@@ -423,6 +459,7 @@ const styles: Record<string, CSSProperties> = {
   sectionLabel: { fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: "#aaa", marginBottom: 18 },
   grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 18 },
   grid3: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 24 },
+  grid4: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 24 },
   fieldGroup: { display: "flex", flexDirection: "column", gap: 6, marginBottom: 18 },
   label: { fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "#bbb" },
   input: { border: "none", borderBottom: "1.5px solid #ddd", padding: "8px 0", fontSize: 14, fontFamily: "'Georgia', serif", color: "#1a1a1a", background: "transparent", outline: "none", width: "100%" },

@@ -1,4 +1,5 @@
 // Only accessible between matched users
+// Features: send, unsend (delete for everyone), delete for me
 
 import axios from "axios";
 import type { CSSProperties, FormEvent } from "react";
@@ -49,11 +50,17 @@ type Message = {
   sender_id?: string;
 };
 
-const formatMessageTime = (value: string) =>
-  new Date(value).toLocaleTimeString([], {
+const formatMessageTime = (value: string) => {
+  const utcValue = value.endsWith("Z") ? value : `${value}Z`;
+  const date = new Date(utcValue);
+
+  return date.toLocaleTimeString("ko-KR", {
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Seoul",
   });
+};
 
 const formatConversationTime = (value: string) =>
   new Date(value).toLocaleString([], {
@@ -164,19 +171,19 @@ export default function Chat() {
 
         if (!active) return;
 
-        const allMatches = [...incomingRes.data, ...outgoingRes.data].filter(
+        const acceptedIncoming = incomingRes.data.filter(
+          (match: any) => match.status === "accepted"
+        );
+        const acceptedOutgoing = outgoingRes.data.filter(
           (match: any) => match.status === "accepted"
         );
 
-        const convs: Conversation[] = allMatches.map((match: any) => {
-          const isRequester = match.requester_id === user.id;
-          const opponent = isRequester ? match.owner : match.requester;
-
-          return {
+        const convs: Conversation[] = [
+          ...acceptedIncoming.map((match: any) => ({
             id: match.id,
-            opponentName: opponent?.name || "Roomie",
-            opponentUniversity: opponent?.university || "",
-            opponentPhoto: opponent?.profile_photo || "",
+            opponentName: match.requester?.name || "Roomie",
+            opponentUniversity: match.requester?.university || "",
+            opponentPhoto: match.requester?.profile_photo || "",
             postTitle: match.posts?.district
               ? `${match.posts.post_type} · ${match.posts.district}`
               : "Matched Post",
@@ -184,8 +191,21 @@ export default function Chat() {
             lastMessage: "Click to start chatting",
             unreadCount: 0,
             updatedAt: formatConversationTime(match.created_at),
-          };
-        });
+          })),
+          ...acceptedOutgoing.map((match: any) => ({
+            id: match.id,
+            opponentName: match.owner?.name || "Roomie",
+            opponentUniversity: match.owner?.university || "",
+            opponentPhoto: match.owner?.profile_photo || "",
+            postTitle: match.posts?.district
+              ? `${match.posts.post_type} · ${match.posts.district}`
+              : "Matched Post",
+            postId: match.post_id,
+            lastMessage: "Click to start chatting",
+            unreadCount: 0,
+            updatedAt: formatConversationTime(match.created_at),
+          })),
+        ];
 
         setConversations(convs);
         setSelectedConversationId((prev) => {
@@ -424,10 +444,42 @@ export default function Chat() {
     try {
       const token = await getToken();
 
-      await axios.post(
+      const { data } = await axios.post(
         `${API}/messages/${selectedConversationId}`,
         { content: trimmedText },
         { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const realMessage: Message = {
+        id: data.id,
+        conversationId: selectedConversationId,
+        sender: "me",
+        senderName: "Me",
+        text: data.content,
+        createdAt: formatMessageTime(data.created_at),
+        sender_id: data.sender_id,
+      };
+
+      setMessages((prev) => {
+        if (prev.some((message) => message.id === realMessage.id)) {
+          return prev;
+        }
+
+        const nextMessages = [...prev, realMessage];
+        messagesRef.current = nextMessages;
+        return nextMessages;
+      });
+
+      setConversations((prev) =>
+        prev.map((conversation) =>
+          conversation.id === selectedConversationId
+            ? {
+                ...conversation,
+                lastMessage: realMessage.text,
+                updatedAt: realMessage.createdAt,
+              }
+            : conversation
+        )
       );
     } catch (err) {
       console.error("Failed to send message", err);
