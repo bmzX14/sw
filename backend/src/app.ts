@@ -15,19 +15,40 @@ import reviewsRoutes from "./routes/reviews.routes";
 dotenv.config();
 
 const app = express();
-const allowedOrigins = [
+const frontendUrl = (process.env.FRONTEND_URL || "").replace(/\/$/, "");
+const localOrigins = [
   "http://localhost:3000",
-  process.env.FRONTEND_URL,
-].filter((origin): origin is string => Boolean(origin));
+  "http://127.0.0.1:3000",
+];
+
+function isAllowedOrigin(origin?: string) {
+  if (!origin) return true;
+
+  const normalizedOrigin = origin.replace(/\/$/, "");
+
+  if (localOrigins.includes(normalizedOrigin)) {
+    return true;
+  }
+
+  if (frontendUrl && normalizedOrigin === frontendUrl) {
+    return true;
+  }
+
+  if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(normalizedOrigin)) {
+    return true;
+  }
+
+  return false;
+}
 
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (isAllowedOrigin(origin)) {
         return callback(null, true);
       }
 
-      return callback(new Error("Not allowed by CORS"));
+      return callback(new Error(`Not allowed by CORS: ${origin}`));
     },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],

@@ -20,17 +20,36 @@ const reviews_routes_1 = __importDefault(require("./routes/reviews.routes"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 exports.app = app;
-// ── CORS — must be first before everything ──
-app.use((req, res, next) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
-    if (req.method === "OPTIONS") {
-        return res.status(200).end();
+const frontendUrl = (process.env.FRONTEND_URL || "").replace(/\/$/, "");
+const localOrigins = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+];
+function isAllowedOrigin(origin) {
+    if (!origin)
+        return true;
+    const normalizedOrigin = origin.replace(/\/$/, "");
+    if (localOrigins.includes(normalizedOrigin)) {
+        return true;
     }
-    next();
-});
-app.use((0, cors_1.default)());
+    if (frontendUrl && normalizedOrigin === frontendUrl) {
+        return true;
+    }
+    if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(normalizedOrigin)) {
+        return true;
+    }
+    return false;
+}
+app.use((0, cors_1.default)({
+    origin(origin, callback) {
+        if (isAllowedOrigin(origin)) {
+            return callback(null, true);
+        }
+        return callback(new Error(`Not allowed by CORS: ${origin}`));
+    },
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+}));
 app.use(express_1.default.json());
 app.use(express_1.default.urlencoded({ extended: true }));
 // ── Routes ──
