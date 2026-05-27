@@ -2,6 +2,7 @@ import type { ChangeEvent, CSSProperties } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import AppNav from "../components/AppNav";
 import { LANGUAGES, LIFESTYLE_TAGS } from "../lib/profileOptions";
 import { NATIONALITIES, UNIVERSITIES } from "../lib/registerOptions";
 import { logoutUser } from "../services/authService";
@@ -210,22 +211,22 @@ export default function Profile() {
   const avatarSrc = photoPreview || profile.profile_photo;
 
   return(
-        <div style={styles.page}>
+        <div style={styles.page} className="roomies-responsive">
             <div style={styles.bgAccent}/>
-            {/* Top Navigation */}
-            <nav style={styles.nav}>
-                <p style={styles.brand}>roomies</p>
-                <div style={styles.navRight}>
-                    <button style={styles.navLink} onClick={() => navigate("/browse")}>Browse</button>
-                    <button style={styles.navLink} onClick={() => navigate("/matches")}>Matches</button>
-                    <button style={styles.navLink} onClick={() => navigate("/chat")}>Chat</button>
-                    <button style={styles.navLink} onClick={() => navigate("/review")}>Review</button>
-                    <button style={styles.navLink} onClick={handleLogout}>Sign out</button>
-                </div>
-            </nav>
-            <div style={styles.container}>
+            <AppNav
+              activeKey="profile"
+              items={[
+                { key: "browse", label: "Browse", onClick: () => navigate("/browse") },
+                { key: "matches", label: "Matches", onClick: () => navigate("/matches") },
+                { key: "chat", label: "Chat", onClick: () => navigate("/chat") },
+                { key: "review", label: "Review", onClick: () => navigate("/review") },
+                { key: "profile", label: "Profile", onClick: () => navigate("/profile") },
+                { key: "signout", label: "Sign out", onClick: handleLogout, tone: "danger" },
+              ]}
+            />
+            <div style={styles.container} className="roomies-mobile-container roomies-mobile-stack">
                 {/*Left -avatar + identity*/}
-                <div style={styles.leftPanel}>
+                <div style={styles.leftPanel} className="roomies-mobile-full">
                     <div style={styles.avatarWrap}>
                         {avatarSrc ? (
                             <img src={avatarSrc} alt="Profile" style={styles.avatar}/>
@@ -267,8 +268,8 @@ export default function Profile() {
                 </div>
 
         {/* Right — editable details */}
-        <div style={styles.rightPanel}>
-            <div style={styles.headerRow}>
+        <div style={styles.rightPanel} className="roomies-mobile-panel">
+            <div style={styles.headerRow} className="roomies-mobile-stack">
             <div>
                 <h2 style={styles.sectionTitle}>My Profile</h2>
                 <p style={styles.sectionSub}>Manage your roommate preferences</p>
@@ -302,7 +303,7 @@ export default function Profile() {
           {/* Basic Info */}
             <div style={styles.section}>
                 <p style={styles.sectionLabel}>Basic Information</p>
-                <div style={styles.grid2}>
+                <div style={styles.grid2} className="roomies-mobile-grid-1">
                 <div style={styles.fieldGroup}>
                 <label style={styles.label}>Full Name</label>
                 {editing ? (
@@ -346,7 +347,7 @@ export default function Profile() {
           {/* Budget */}
             <div style={styles.section}>
             <p style={styles.sectionLabel}>Monthly Budget (KRW)</p>
-                <div style={styles.grid2}>
+                <div style={styles.grid2} className="roomies-mobile-grid-1">
                 <div style={styles.fieldGroup}>
                 <label style={styles.label}>Minimum</label>
                 {editing ? (

@@ -1,0 +1,107 @@
+* {
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .roomies-responsive .roomies-mobile-container {
+    margin: 24px auto !important;
+    padding: 0 16px !important;
+  }
+
+  .roomies-responsive .roomies-mobile-header {
+    padding: 28px 20px !important;
+  }
+
+  .roomies-responsive .roomies-mobile-panel {
+    padding: 24px 20px !important;
+  }
+
+  .roomies-responsive .roomies-mobile-stack {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+
+  .roomies-responsive .roomies-mobile-grid-1 {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
+  .roomies-responsive .roomies-mobile-grid-2 {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 12px !important;
+  }
+
+  .roomies-responsive .roomies-mobile-wrap {
+    flex-wrap: wrap !important;
+  }
+
+  .roomies-responsive .roomies-mobile-full {
+    width: 100% !important;
+  }
+
+  .roomies-responsive .roomies-mobile-divider-hidden {
+    display: none !important;
+  }
+
+  .roomies-responsive .roomies-mobile-scroll {
+    overflow-x: auto !important;
+    scrollbar-width: none;
+  }
+
+  .roomies-responsive .roomies-mobile-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  .roomies-responsive .roomies-mobile-photo-main {
+    height: 240px !important;
+  }
+
+  .roomies-responsive .roomies-mobile-thumbnails {
+    overflow-x: auto !important;
+    padding-bottom: 4px !important;
+  }
+
+  .roomies-responsive .roomies-mobile-sidebar,
+  .roomies-responsive .roomies-mobile-thread {
+    min-height: auto !important;
+  }
+
+  .roomies-responsive .roomies-mobile-message-wrap {
+    max-width: 82% !important;
+  }
+
+  .roomies-responsive .roomies-mobile-auth-shell {
+    flex-direction: column !important;
+    gap: 20px !important;
+    padding: 20px !important;
+  }
+
+  .roomies-responsive .roomies-mobile-auth-panel {
+    width: 100% !important;
+    min-height: auto !important;
+    padding: 28px 22px !important;
+  }
+
+  .roomies-responsive button,
+  .roomies-responsive input,
+  .roomies-responsive select,
+  .roomies-responsive textarea {
+    font-size: 16px !important;
+  }
+
+  .roomies-responsive button {
+    min-height: 44px !important;
+  }
+
+  .roomies-responsive input,
+  .roomies-responsive select {
+    min-height: 48px !important;
+  }
+
+  .roomies-responsive textarea {
+    min-height: 140px !important;
+  }
+}

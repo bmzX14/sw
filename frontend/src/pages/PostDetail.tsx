@@ -3,12 +3,15 @@ import type { CSSProperties } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { API } from "../lib/api";
+import AppNav from "../components/AppNav";
 import { supabase } from "../lib/supabase";
+import { getCurrentUserProfile } from "../services/profileService";
 
 type DbPost = {
   id: string;
   user_id?: string;
   full_address?: string;
+  near_university?: string | null;
   post_type: string;
   district: string;
   room_type?: string | null;
@@ -108,14 +111,14 @@ export default function PostDetail() {
       const token = await getToken();
       const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
 
-      const [{ data: postRes }, { data: userRes }] = await Promise.all([
+      const [{ data: postRes }, profile] = await Promise.all([
         axios.get(`${API}/posts/${id}`, headers ? { headers } : undefined),
-        supabase.auth.getUser(),
+        getCurrentUserProfile(),
       ]);
 
       const photos = normalizePhotos(postRes.photos);
       setPost({ ...postRes, photos });
-      setCurrentUserId(userRes.user?.id || "");
+      setCurrentUserId(profile.id || "");
       setSelectedPhoto(photos[0] || "");
     } catch (err: any) {
       setError(getRequestErrorMessage(err, "Failed to load post."));
@@ -191,29 +194,28 @@ export default function PostDetail() {
   const writerName = post.users?.name || "Student";
 
   return (
-    <div style={styles.page}>
+    <div style={styles.page} className="roomies-responsive">
       <div style={styles.bgAccent} />
 
-      <nav style={styles.nav}>
-        <p style={styles.brand}>roomies</p>
-        <div style={styles.navRight}>
-          <button style={styles.navLink} onClick={() => navigate("/browse")}>Browse</button>
-          <button style={styles.navLink} onClick={() => navigate("/matches")}>Matches</button>
-          <button style={styles.navLink} onClick={() => navigate("/chat")}>Chat</button>
-          <button style={styles.navLink} onClick={() => navigate("/review")}>Review</button>
-          <button style={styles.navLink} onClick={() => navigate("/profile")}>Profile</button>
-        </div>
-      </nav>
+      <AppNav
+        items={[
+          { key: "browse", label: "Browse", onClick: () => navigate("/browse") },
+          { key: "matches", label: "Matches", onClick: () => navigate("/matches") },
+          { key: "chat", label: "Chat", onClick: () => navigate("/chat") },
+          { key: "review", label: "Review", onClick: () => navigate("/review") },
+          { key: "profile", label: "Profile", onClick: () => navigate("/profile") },
+        ]}
+      />
 
-      <main style={styles.container}>
+      <main style={styles.container} className="roomies-mobile-container">
         <button style={styles.backBtn} onClick={() => navigate("/browse")}>
           Back to Browse
         </button>
 
         {error && <div style={styles.errorBox}>{error}</div>}
 
-        <section style={styles.photoPanel}>
-          <div style={styles.mainPhotoBox}>
+        <section style={styles.photoPanel} className="roomies-mobile-panel">
+          <div style={styles.mainPhotoBox} className="roomies-mobile-photo-main">
             {selectedPhoto ? (
               <img src={selectedPhoto} alt="Room" style={styles.mainPhoto} />
             ) : (
@@ -222,7 +224,7 @@ export default function PostDetail() {
           </div>
 
           {(post.photos || []).length > 1 && (
-            <div style={styles.thumbnailRow}>
+            <div style={styles.thumbnailRow} className="roomies-mobile-thumbnails">
               {post.photos.map((photo, index) => (
                 <button key={photo} style={styles.thumbnailBtn} onClick={() => setSelectedPhoto(photo)}>
                   <img src={photo} alt={`Room ${index + 1}`} style={styles.thumbnail} />
@@ -232,8 +234,8 @@ export default function PostDetail() {
           )}
         </section>
 
-        <section style={styles.header}>
-          <div style={styles.topLine}>
+        <section style={styles.header} className="roomies-mobile-header">
+          <div style={styles.topLine} className="roomies-mobile-stack">
             <span style={styles.typeBadge}>{postTypeLabels[post.post_type] || "Room Post"}</span>
             <span style={styles.date}>{new Date(post.created_at).toLocaleDateString()}</span>
           </div>
@@ -252,9 +254,9 @@ export default function PostDetail() {
           </div>
         </section>
 
-        <section style={styles.infoPanel}>
+        <section style={styles.infoPanel} className="roomies-mobile-panel">
           <p style={styles.sectionLabel}>Room Information</p>
-          <div style={styles.infoGrid}>
+          <div style={styles.infoGrid} className="roomies-mobile-grid-1">
             <Info label="Region" value={post.district} />
             <Info
               label="Room Type"
@@ -272,6 +274,7 @@ export default function PostDetail() {
               value={formatDate(post.available_until)}
             />
             <Info label="Gender Preference" value={post.gender_preference || "No Preference"} />
+            <Info label="Near University" value={post.near_university || "Not specified"} />
             <div style={styles.infoItem}>
               <p style={styles.infoLabel}>Full Address</p>
               <p style={post.full_address ? styles.infoValue : styles.privateAddress}>
@@ -281,12 +284,12 @@ export default function PostDetail() {
           </div>
         </section>
 
-        <section style={styles.contentPanel}>
+        <section style={styles.contentPanel} className="roomies-mobile-panel">
           <p style={styles.sectionLabel}>Description</p>
           <p style={styles.descriptionText}>{post.description_en || "No description."}</p>
         </section>
 
-        <section style={styles.contentPanel}>
+        <section style={styles.contentPanel} className="roomies-mobile-panel">
           <p style={styles.sectionLabel}>Lifestyle Tags</p>
           <div style={styles.tagsGrid}>
             {(post.lifestyle_tags || []).length > 0 ? (
@@ -297,7 +300,7 @@ export default function PostDetail() {
           </div>
         </section>
 
-        <section style={styles.actionPanel}>
+        <section style={styles.actionPanel} className="roomies-mobile-panel roomies-mobile-stack">
           {isOwner ? (
             <>
               <div>

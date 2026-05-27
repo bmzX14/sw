@@ -86,12 +86,12 @@ export default function Register() {
   };
 
   return(
-        <div style={styles.page}>
+        <div style={styles.page} className="roomies-responsive">
             {/*Background accent*/}
             <div style={styles.bgAccent}></div>
-            <div style={styles.container}>
+            <div style={styles.container} className="roomies-mobile-auth-shell">
                 {/*left panel*/}
-                <div style={styles.leftPanel}>
+                <div style={styles.leftPanel} className="roomies-mobile-auth-panel">
                     <div>
                         <p style={styles.brand}>roomies</p>
                         <h1 style={styles.tagline}>
@@ -122,7 +122,7 @@ export default function Register() {
                 </div>
 
                 {/*Right Panel form */}
-                <div style={styles.rightPanel}>
+                <div style={styles.rightPanel} className="roomies-mobile-auth-panel">
                     <div style={styles.formCard}>
             <h2 style={styles.formTitle}>
                 {step === 1 ? "Create your account" : "Tell us about yourself"}

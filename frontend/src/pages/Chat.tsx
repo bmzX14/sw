@@ -1,5 +1,5 @@
 // Only accessible between matched users
-// Features: send, unsend (delete for everyone), delete for me
+// features: send, unsend, delete for me, unread marker, double-click like reaction
 
 import axios from "axios";
 import type { CSSProperties, FormEvent } from "react";
@@ -7,6 +7,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API } from "../lib/api";
 import { supabase } from "../lib/supabase";
+import { getCurrentUserProfile } from "../services/profileService";
+import type { UserProfile } from "../types/user";
 
 // Helper: Get JWT token from Supabase session
 const getToken = async () => {
@@ -17,13 +19,17 @@ const getToken = async () => {
   return session?.access_token || "";
 };
 
-// Helper: Get current logged in user
-const getCurrentUser = async () => {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+// Helper function for time formatting
+const formatMessageTime = (dateStr: string) => {
+  const utcStr = dateStr.endsWith("Z") ? dateStr : dateStr + "Z";
+  const date = new Date(utcStr);
 
-  return user;
+  return date.toLocaleTimeString("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Seoul",
+  });
 };
 
 // Conversation = an accepted match with chat info
@@ -48,27 +54,12 @@ type Message = {
   text: string;
   createdAt: string;
   sender_id?: string;
+
+  // Optional fields for future backend support
+  readAt?: string | null;
+  isReadByOpponent?: boolean;
+  reaction?: string | null;
 };
-
-const formatMessageTime = (value: string) => {
-  const utcValue = value.endsWith("Z") ? value : `${value}Z`;
-  const date = new Date(utcValue);
-
-  return date.toLocaleTimeString("ko-KR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "Asia/Seoul",
-  });
-};
-
-const formatConversationTime = (value: string) =>
-  new Date(value).toLocaleString([], {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 
 export default function Chat() {
   const navigate = useNavigate();
@@ -78,11 +69,11 @@ export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState("");
   const [inputValue, setInputValue] = useState("");
-  const [currentUserId, setCurrentUserId] = useState("");
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
 
-  // Message delete / unsend states
+  // Message delete and unsend states
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(
     null
   );
@@ -91,335 +82,378 @@ export default function Chat() {
   );
   const [hiddenMessageIds, setHiddenMessageIds] = useState<string[]>([]);
 
+  const [messageReactions, setMessageReactions] = useState<
+    Record<string, string>
+  >({});
+  const conversationIdsKey = conversations
+    .map((conversation) => conversation.id)
+    .join("|");
+
   // Ref for auto-scrolling to latest message
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const messagesRef = useRef<Message[]>([]);
+  const currentUserRef = useRef<UserProfile | null>(null);
   const selectedConversationIdRef = useRef("");
+  const messagesRef = useRef<Message[]>([]);
   const hiddenMessageIdsRef = useRef<string[]>([]);
-  const currentUserIdRef = useRef("");
 
+  // Initialize on mount
   useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
+    initChat();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     selectedConversationIdRef.current = selectedConversationId;
   }, [selectedConversationId]);
 
   useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  useEffect(() => {
     hiddenMessageIdsRef.current = hiddenMessageIds;
   }, [hiddenMessageIds]);
 
-  useEffect(() => {
-    currentUserIdRef.current = currentUserId;
-  }, [currentUserId]);
-
-  const updateConversationPreview = (
-    conversationId: string,
-    nextMessages: Message[],
-    nextHiddenMessageIds = hiddenMessageIdsRef.current
-  ) => {
-    const visibleMessages = nextMessages.filter(
-      (message) =>
-        message.conversationId === conversationId &&
-        !nextHiddenMessageIds.includes(message.id)
-    );
-
-    const lastMessage = visibleMessages[visibleMessages.length - 1];
-
-    setConversations((prev) =>
-      prev.map((conversation) =>
-        conversation.id === conversationId
-          ? {
-              ...conversation,
-              lastMessage: lastMessage ? lastMessage.text : "No messages yet",
-              updatedAt: lastMessage
-                ? lastMessage.createdAt
-                : conversation.updatedAt,
-            }
-          : conversation
-      )
-    );
-  };
-
-  // Initialize on mount
-  useEffect(() => {
-    let active = true;
-
-    const initializeChat = async () => {
-      try {
-        const user = await getCurrentUser();
-
-        if (!active) return;
-
-        if (!user) {
-          navigate("/login");
-          return;
-        }
-
-        setCurrentUserId(user.id);
-
-        const token = await getToken();
-
-        if (!active) return;
-
-        const headers = { Authorization: `Bearer ${token}` };
-        const [incomingRes, outgoingRes] = await Promise.all([
-          axios.get(`${API}/matches/incoming`, { headers }),
-          axios.get(`${API}/matches/outgoing`, { headers }),
-        ]);
-
-        if (!active) return;
-
-        const acceptedIncoming = incomingRes.data.filter(
-          (match: any) => match.status === "accepted"
-        );
-        const acceptedOutgoing = outgoingRes.data.filter(
-          (match: any) => match.status === "accepted"
-        );
-
-        const convs: Conversation[] = [
-          ...acceptedIncoming.map((match: any) => ({
-            id: match.id,
-            opponentName: match.requester?.name || "Roomie",
-            opponentUniversity: match.requester?.university || "",
-            opponentPhoto: match.requester?.profile_photo || "",
-            postTitle: match.posts?.district
-              ? `${match.posts.post_type} · ${match.posts.district}`
-              : "Matched Post",
-            postId: match.post_id,
-            lastMessage: "Click to start chatting",
-            unreadCount: 0,
-            updatedAt: formatConversationTime(match.created_at),
-          })),
-          ...acceptedOutgoing.map((match: any) => ({
-            id: match.id,
-            opponentName: match.owner?.name || "Roomie",
-            opponentUniversity: match.owner?.university || "",
-            opponentPhoto: match.owner?.profile_photo || "",
-            postTitle: match.posts?.district
-              ? `${match.posts.post_type} · ${match.posts.district}`
-              : "Matched Post",
-            postId: match.post_id,
-            lastMessage: "Click to start chatting",
-            unreadCount: 0,
-            updatedAt: formatConversationTime(match.created_at),
-          })),
-        ];
-
-        setConversations(convs);
-        setSelectedConversationId((prev) => {
-          if (prev && convs.some((conversation) => conversation.id === prev)) {
-            return prev;
-          }
-
-          return convs[0]?.id || "";
-        });
-      } catch (err) {
-        console.error("Failed to initialize chat", err);
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    };
-
-    initializeChat();
-
-    return () => {
-      active = false;
-    };
-  }, [navigate]);
-
   // Fetch messages when conversation changes
   useEffect(() => {
-    if (!selectedConversationId || !currentUserId) return;
+    if (!selectedConversationId) return;
+    if (!currentUserRef.current) return;
 
-    let active = true;
+    fetchMessages(selectedConversationId);
+    markConversationAsRead(selectedConversationId);
+  }, [selectedConversationId, currentUser]);
 
-    const loadMessages = async () => {
-      try {
-        const token = await getToken();
-        const { data } = await axios.get(`${API}/messages/${selectedConversationId}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (!active) return;
-
-        const formatted: Message[] = data.map((msg: any) => ({
-          id: msg.id,
-          conversationId: selectedConversationId,
-          sender: msg.sender_id === currentUserId ? "me" : "opponent",
-          senderName: msg.sender_id === currentUserId ? "Me" : msg.users?.name || "Roomie",
-          text: msg.content,
-          createdAt: formatMessageTime(msg.created_at),
-          sender_id: msg.sender_id,
-        }));
-
-        setMessages((prev) => {
-          const nextMessages = [
-            ...prev.filter((message) => message.conversationId !== selectedConversationId),
-            ...formatted,
-          ];
-
-          messagesRef.current = nextMessages;
-          return nextMessages;
-        });
-
-        setConversations((prev) =>
-          prev.map((conversation) =>
-            conversation.id === selectedConversationId
-              ? {
-                  ...conversation,
-                  unreadCount: 0,
-                }
-              : conversation
-          )
-        );
-
-        updateConversationPreview(
-          selectedConversationId,
-          [
-            ...messagesRef.current.filter(
-              (message) => message.conversationId !== selectedConversationId
-            ),
-            ...formatted,
-          ],
-          hiddenMessageIdsRef.current
-        );
-      } catch (err) {
-        console.error("Failed to fetch messages", err);
-      }
-    };
-
-    loadMessages();
-
-    return () => {
-      active = false;
-    };
-  }, [currentUserId, selectedConversationId]);
-
-  // Subscribe to real-time inserts/deletes for every accepted conversation
+  // Subscribe to realtime updates for every loaded conversation
   useEffect(() => {
-    if (!currentUserId || conversations.length === 0) return;
+    if (!currentUserRef.current) return;
+    if (conversations.length === 0) return;
 
-    const channels = conversations.map((conversation) => {
-      const matchId = conversation.id;
-
-      return supabase
-        .channel(`messages:${matchId}`)
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "messages",
-            filter: `match_id=eq.${matchId}`,
-          },
-          (payload) => {
-            const newMessage = payload.new as any;
-            const formatted: Message = {
-              id: newMessage.id,
-              conversationId: matchId,
-              sender:
-                newMessage.sender_id === currentUserIdRef.current
-                  ? "me"
-                  : "opponent",
-              senderName:
-                newMessage.sender_id === currentUserIdRef.current
-                  ? "Me"
-                  : "Roomie",
-              text: newMessage.content,
-              createdAt: formatMessageTime(newMessage.created_at),
-              sender_id: newMessage.sender_id,
-            };
-
-            setMessages((prev) => {
-              if (prev.some((message) => message.id === formatted.id)) {
-                return prev;
-              }
-
-              const nextMessages = [...prev, formatted];
-              messagesRef.current = nextMessages;
-              return nextMessages;
-            });
-
-            setConversations((prev) =>
-              prev.map((item) =>
-                item.id === matchId
-                  ? {
-                      ...item,
-                      lastMessage: formatted.text,
-                      updatedAt: formatted.createdAt,
-                      unreadCount:
-                        newMessage.sender_id === currentUserIdRef.current
-                          ? item.unreadCount
-                          : selectedConversationIdRef.current === matchId
-                            ? 0
-                            : item.unreadCount + 1,
-                    }
-                  : item
-              )
-            );
-          }
-        )
-        .on(
-          "postgres_changes",
-          {
-            event: "DELETE",
-            schema: "public",
-            table: "messages",
-            filter: `match_id=eq.${matchId}`,
-          },
-          (payload) => {
-            const deletedMessage = payload.old as any;
-
-            setMessages((prev) => {
-              const nextMessages = prev.filter(
-                (message) => message.id !== deletedMessage.id
-              );
-
-              messagesRef.current = nextMessages;
-              updateConversationPreview(
-                matchId,
-                nextMessages,
-                hiddenMessageIdsRef.current.filter(
-                  (messageId) => messageId !== deletedMessage.id
-                )
-              );
-              return nextMessages;
-            });
-
-            setHiddenMessageIds((prev) => {
-              const nextHiddenMessageIds = prev.filter(
-                (id) => id !== deletedMessage.id
-              );
-              hiddenMessageIdsRef.current = nextHiddenMessageIds;
-              return nextHiddenMessageIds;
-            });
-            setSelectedMessageId((prev) =>
-              prev === deletedMessage.id ? null : prev
-            );
-          }
-        )
-        .subscribe();
-    });
+    const channels = conversations.map((conversation) =>
+      subscribeToMessages(conversation.id)
+    );
 
     return () => {
       channels.forEach((channel) => {
         supabase.removeChannel(channel);
       });
     };
-  }, [conversations, currentUserId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationIdsKey, currentUser?.id]);
 
   // Auto scroll to latest message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, hiddenMessageIds]);
+  }, [messages, hiddenMessageIds, messageReactions]);
+
+  // Initialize: get current user and fetch all accepted matches
+  const initChat = async () => {
+    try {
+      const user = await getCurrentUserProfile();
+
+      setCurrentUser(user);
+      currentUserRef.current = user;
+
+      await fetchConversations(user);
+    } catch (err) {
+      console.error("Failed to initialize chat", err);
+      navigate("/login");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch accepted matches and convert to conversation format
+  const fetchConversations = async (user: UserProfile) => {
+    try {
+      const token = await getToken();
+      const headers = { Authorization: `Bearer ${token}` };
+
+      const { data: allMatches } = await axios.get(`${API}/matches/accepted`, {
+        headers,
+      });
+
+      const summaries = await Promise.all(
+        allMatches.map(async (match: any) => {
+          const { data: matchMessages } = await axios.get(
+            `${API}/messages/${match.id}`,
+            { headers }
+          );
+
+          const lastMessage = matchMessages[matchMessages.length - 1];
+          const unreadCount = matchMessages.filter(
+            (msg: any) => msg.sender_id !== user.id && !msg.read_at
+          ).length;
+
+          return {
+            matchId: match.id,
+            lastMessage: lastMessage
+              ? lastMessage.reaction
+                ? `${lastMessage.reaction} ${lastMessage.content}`
+                : lastMessage.content
+              : "Click to start chatting",
+            updatedAt: lastMessage
+              ? formatMessageTime(lastMessage.created_at)
+              : new Date(match.created_at).toLocaleDateString(),
+            unreadCount,
+          };
+        })
+      );
+
+      const summaryByMatchId = new Map(
+        summaries.map((summary) => [summary.matchId, summary])
+      );
+
+      const convs: Conversation[] = allMatches.map((match: any) => {
+        const isRequester = match.requester_id === user.id;
+        const opponent = isRequester ? match.owner : match.requester;
+        const summary = summaryByMatchId.get(match.id);
+
+        return {
+          id: match.id,
+          opponentName: opponent?.name || "Roomie",
+          opponentUniversity: opponent?.university || "",
+          opponentPhoto: opponent?.profile_photo || "",
+          postTitle: match.posts?.district
+            ? `${match.posts.post_type} · ${match.posts.district}`
+            : "Matched Post",
+          postId: match.post_id,
+          lastMessage: summary?.lastMessage || "Click to start chatting",
+          unreadCount: summary?.unreadCount || 0,
+          updatedAt:
+            summary?.updatedAt || new Date(match.created_at).toLocaleDateString(),
+        };
+      });
+
+      setConversations(convs);
+
+      if (convs.length > 0) {
+        setSelectedConversationId(convs[0].id);
+      }
+    } catch (err) {
+      console.error("Failed to fetch conversations", err);
+    }
+  };
+
+  // Fetch messages for a match from Express backend
+  const fetchMessages = async (matchId: string) => {
+    try {
+      const token = await getToken();
+
+      const { data } = await axios.get(`${API}/messages/${matchId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const formatted: Message[] = data.map((msg: any) => {
+        const isMine = msg.sender_id === currentUserRef.current?.id;
+
+        return {
+          id: msg.id,
+          conversationId: matchId,
+          sender: isMine ? "me" : "opponent",
+          senderName: isMine ? "Me" : msg.users?.name || "Roomie",
+          text: msg.content,
+          createdAt: formatMessageTime(msg.created_at),
+          sender_id: msg.sender_id,
+
+          // These fields are optional. They will work if backend later sends them.
+          readAt: msg.read_at || null,
+          isReadByOpponent: Boolean(msg.read_at || msg.is_read_by_opponent),
+          reaction: msg.reaction || null,
+        };
+      });
+
+      setMessages((prev) => [
+        ...prev.filter((m) => m.conversationId !== matchId),
+        ...formatted,
+      ]);
+
+      formatted.forEach((msg) => {
+        if (msg.reaction) {
+          setMessageReactions((prev) => ({
+            ...prev,
+            [msg.id]: msg.reaction || "",
+          }));
+        }
+      });
+
+      if (formatted.length > 0) {
+        const last = formatted[formatted.length - 1];
+
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === matchId
+              ? {
+                  ...c,
+                  lastMessage: last.reaction
+                    ? `${last.reaction} ${last.text}`
+                    : last.text,
+                  updatedAt: last.createdAt,
+                }
+              : c
+          )
+        );
+      }
+    } catch (err) {
+      console.error("Failed to fetch messages", err);
+    }
+  };
+
+  // Subscribe to real-time new, updated, and deleted messages via Supabase Realtime
+  const subscribeToMessages = (matchId: string) => {
+    const channel = supabase
+      .channel(`messages:${matchId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "messages",
+          filter: `match_id=eq.${matchId}`,
+        },
+        (payload) => {
+          const newMsg = payload.new as any;
+          const isMine = newMsg.sender_id === currentUserRef.current?.id;
+
+          const formatted: Message = {
+            id: newMsg.id,
+            conversationId: matchId,
+            sender: isMine ? "me" : "opponent",
+            senderName: isMine ? "Me" : "Roomie",
+            text: newMsg.content,
+            createdAt: formatMessageTime(newMsg.created_at),
+            sender_id: newMsg.sender_id,
+            readAt: newMsg.read_at || null,
+            isReadByOpponent: Boolean(
+              newMsg.read_at || newMsg.is_read_by_opponent
+            ),
+            reaction: newMsg.reaction || null,
+          };
+
+          setMessages((prev) => {
+            const withoutTemp = prev.filter(
+              (m) => !(m.id.startsWith("temp-") && m.text === formatted.text)
+            );
+
+            if (withoutTemp.find((m) => m.id === formatted.id)) {
+              return withoutTemp;
+            }
+
+            return [...withoutTemp, formatted];
+          });
+
+          if (formatted.reaction) {
+            setMessageReactions((prev) => ({
+              ...prev,
+              [formatted.id]: formatted.reaction || "",
+            }));
+          }
+
+          const shouldIncreaseUnread =
+            selectedConversationIdRef.current !== matchId && !isMine;
+
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === matchId
+                ? {
+                    ...c,
+                    lastMessage: newMsg.reaction
+                      ? `${newMsg.reaction} ${newMsg.content}`
+                      : newMsg.content,
+                    updatedAt: formatted.createdAt,
+                    unreadCount: shouldIncreaseUnread
+                      ? c.unreadCount + 1
+                      : c.unreadCount,
+                  }
+                : c
+            )
+          );
+
+          if (selectedConversationIdRef.current === matchId && !isMine) {
+            markConversationAsRead(matchId);
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+          filter: `match_id=eq.${matchId}`,
+        },
+        (payload) => {
+          const updatedMsg = payload.new as any;
+
+          setMessages((prev) =>
+            prev.map((message) => {
+              if (message.id !== updatedMsg.id) return message;
+
+              return {
+                ...message,
+                text: updatedMsg.content ?? message.text,
+                readAt: updatedMsg.read_at || message.readAt,
+                isReadByOpponent: Boolean(
+                  updatedMsg.read_at ||
+                    updatedMsg.is_read_by_opponent ||
+                    message.isReadByOpponent
+                ),
+                reaction:
+                  updatedMsg.reaction !== undefined
+                    ? updatedMsg.reaction
+                    : message.reaction,
+              };
+            })
+          );
+
+          if (updatedMsg.reaction !== undefined) {
+            setMessageReactions((prev) => {
+              const next = { ...prev };
+
+              if (updatedMsg.reaction) {
+                next[updatedMsg.id] = updatedMsg.reaction;
+              } else {
+                delete next[updatedMsg.id];
+              }
+
+              return next;
+            });
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "messages",
+          filter: `match_id=eq.${matchId}`,
+        },
+        (payload) => {
+          const deletedMsg = payload.old as any;
+
+          setMessages((prev) =>
+            prev.filter((message) => message.id !== deletedMsg.id)
+          );
+
+          setMessageReactions((prev) => {
+            const next = { ...prev };
+            delete next[deletedMsg.id];
+            return next;
+          });
+
+          const nextMessages = messagesRef.current.filter(
+            (message) => message.id !== deletedMsg.id
+          );
+          updateConversationLastMessage(matchId, nextMessages);
+        }
+      )
+      .subscribe();
+
+    return channel;
+  };
 
   // Select conversation and clear unread count
   const selectConversation = (conversationId: string) => {
-    selectedConversationIdRef.current = conversationId;
     setSelectedConversationId(conversationId);
     setSelectedMessageId(null);
 
@@ -428,6 +462,44 @@ export default function Chat() {
         c.id === conversationId ? { ...c, unreadCount: 0 } : c
       )
     );
+
+    markConversationAsRead(conversationId);
+  };
+
+  // Mark current conversation as read on UI
+  // Backend can later replace this with PATCH /api/messages/:matchId/read
+  const markConversationAsRead = async (conversationId: string) => {
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === conversationId ? { ...c, unreadCount: 0 } : c
+      )
+    );
+
+    try {
+      const token = await getToken();
+
+      const { data } = await axios.patch(
+        `${API}/messages/${conversationId}/read`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (Array.isArray(data?.messageIds) && data.messageIds.length > 0) {
+        setMessages((prev) =>
+          prev.map((message) =>
+            data.messageIds.includes(message.id)
+              ? {
+                  ...message,
+                  readAt: data.readAt,
+                  isReadByOpponent: true,
+                }
+              : message
+          )
+        );
+      }
+    } catch {
+      // Ignore if the backend is temporarily unavailable.
+    }
   };
 
   // Send message to Express backend
@@ -458,27 +530,25 @@ export default function Chat() {
         text: data.content,
         createdAt: formatMessageTime(data.created_at),
         sender_id: data.sender_id,
+        readAt: data.read_at || null,
+        isReadByOpponent: Boolean(data.read_at || data.is_read_by_opponent),
+        reaction: data.reaction || null,
       };
 
       setMessages((prev) => {
-        if (prev.some((message) => message.id === realMessage.id)) {
-          return prev;
-        }
-
-        const nextMessages = [...prev, realMessage];
-        messagesRef.current = nextMessages;
-        return nextMessages;
+        if (prev.find((m) => m.id === realMessage.id)) return prev;
+        return [...prev, realMessage];
       });
 
       setConversations((prev) =>
-        prev.map((conversation) =>
-          conversation.id === selectedConversationId
+        prev.map((c) =>
+          c.id === selectedConversationId
             ? {
-                ...conversation,
+                ...c,
                 lastMessage: realMessage.text,
                 updatedAt: realMessage.createdAt,
               }
-            : conversation
+            : c
         )
       );
     } catch (err) {
@@ -489,34 +559,76 @@ export default function Chat() {
     }
   };
 
-  // Open / close IG-like message option menu
+  // Toggle message options menu
   const toggleMessageMenu = (messageId: string) => {
     setSelectedMessageId((prev) => (prev === messageId ? null : messageId));
   };
 
-  // Delete for me: only hide from my current screen
-  const deleteForMe = (message: Message) => {
-    setHiddenMessageIds((prev) => {
-      if (prev.includes(message.id)) {
-        return prev;
+  // Double click like reaction
+  const toggleLikeReaction = async (message: Message) => {
+    const currentReaction = messageReactions[message.id] || message.reaction;
+    const nextReaction = currentReaction === "👍🏻" ? "" : "👍🏻";
+
+    setMessageReactions((prev) => {
+      const next = { ...prev };
+
+      if (nextReaction) {
+        next[message.id] = nextReaction;
+      } else {
+        delete next[message.id];
       }
 
-      const nextHiddenMessageIds = [...prev, message.id];
-      hiddenMessageIdsRef.current = nextHiddenMessageIds;
-      updateConversationPreview(
-        message.conversationId,
-        messagesRef.current,
-        nextHiddenMessageIds
-      );
-      return nextHiddenMessageIds;
+      return next;
     });
 
-    setSelectedMessageId(null);
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === message.id
+          ? {
+              ...m,
+              reaction: nextReaction || null,
+            }
+          : m
+      )
+    );
+
+    try {
+      const token = await getToken();
+
+      await axios.patch(
+        `${API}/messages/${message.id}/reaction`,
+        { reaction: nextReaction || null },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+    } catch {
+      // Ignore until backend reaction API is ready.
+    }
   };
 
-  // Unsend: delete from backend DB, then remove from UI
+  // Delete for me: only hide locally
+  const deleteForMe = (message: Message) => {
+    const nextHiddenMessageIds = hiddenMessageIdsRef.current.includes(message.id)
+      ? hiddenMessageIdsRef.current
+      : [...hiddenMessageIdsRef.current, message.id];
+
+    setHiddenMessageIds(nextHiddenMessageIds);
+
+    setSelectedMessageId(null);
+    updateConversationLastMessage(
+      message.conversationId,
+      messagesRef.current,
+      nextHiddenMessageIds
+    );
+  };
+
+  // Unsend: delete from backend DB, removes for everyone via realtime
   const unsendMessage = async (message: Message) => {
     if (message.sender !== "me") return;
+
+    if (message.id.startsWith("temp-")) {
+      alert("Message is still sending. Please wait.");
+      return;
+    }
 
     const confirmed = window.confirm(
       "Unsend this message? It will be removed from this conversation."
@@ -533,30 +645,66 @@ export default function Chat() {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      setMessages((prev) => {
-        const nextMessages = prev.filter((item) => item.id !== message.id);
-        messagesRef.current = nextMessages;
-        updateConversationPreview(
-          message.conversationId,
-          nextMessages,
-          hiddenMessageIdsRef.current.filter((id) => id !== message.id)
-        );
-        return nextMessages;
-      });
+      const nextMessages = messagesRef.current.filter((m) => m.id !== message.id);
+      setMessages(nextMessages);
+      setHiddenMessageIds((prev) => prev.filter((id) => id !== message.id));
 
-      setHiddenMessageIds((prev) => {
-        const nextHiddenMessageIds = prev.filter((id) => id !== message.id);
-        hiddenMessageIdsRef.current = nextHiddenMessageIds;
-        return nextHiddenMessageIds;
+      setMessageReactions((prev) => {
+        const next = { ...prev };
+        delete next[message.id];
+        return next;
       });
 
       setSelectedMessageId(null);
+      updateConversationLastMessage(message.conversationId, nextMessages);
     } catch (err) {
       console.error("Failed to unsend message", err);
-      alert("Failed to unsend this message. Please try again.");
+      alert("Failed to unsend message. Please try again.");
     } finally {
       setDeletingMessageId(null);
     }
+  };
+
+  // Update sidebar last message after delete/unsend
+  const updateConversationLastMessage = (
+    conversationId: string,
+    nextMessages: Message[],
+    nextHiddenMessageIds = hiddenMessageIdsRef.current
+  ) => {
+    const visibleMessages = nextMessages.filter(
+      (m) =>
+        m.conversationId === conversationId &&
+        !nextHiddenMessageIds.includes(m.id)
+    );
+
+    const lastMessage = visibleMessages[visibleMessages.length - 1];
+
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === conversationId
+          ? {
+              ...c,
+              lastMessage: lastMessage
+                ? lastMessage.reaction
+                  ? `${lastMessage.reaction} ${lastMessage.text}`
+                  : lastMessage.text
+                : "No messages yet",
+              updatedAt: lastMessage ? lastMessage.createdAt : "",
+            }
+          : c
+      )
+    );
+  };
+
+  // Kakao-style unread marker:
+  // Shows "1" next to my messages until backend says the opponent read it.
+  const shouldShowUnreadOne = (message: Message) => {
+    if (message.sender !== "me") return false;
+    if (message.id.startsWith("temp-")) return false;
+    if (message.readAt) return false;
+    if (message.isReadByOpponent) return false;
+
+    return true;
   };
 
   // Computed values
@@ -605,6 +753,7 @@ export default function Chat() {
     <div style={styles.page}>
       <div style={styles.bgAccent} />
 
+      {/* Navigation */}
       <nav style={styles.nav}>
         <p style={styles.brand}>roomies</p>
 
@@ -613,11 +762,22 @@ export default function Chat() {
             Browse
           </button>
 
-          <button style={styles.navLinkActive} onClick={() => navigate("/chat")}>
+          <button style={styles.navLink} onClick={() => navigate("/matches")}>
+            Matches
+          </button>
+
+          <button
+            style={styles.navLinkActive}
+            onClick={() => navigate("/chat")}
+          >
             Chat
             {totalUnreadCount > 0 && (
               <span style={styles.navBadge}>{totalUnreadCount}</span>
             )}
+          </button>
+
+          <button style={styles.navLink} onClick={() => navigate("/review")}>
+            Review
           </button>
 
           <button style={styles.navLink} onClick={() => navigate("/profile")}>
@@ -627,18 +787,21 @@ export default function Chat() {
       </nav>
 
       <main style={styles.container}>
+        {/* Page Header */}
         <section style={styles.header}>
           <div>
             <p style={styles.kicker}>MESSAGING</p>
             <h1 style={styles.title}>Chat</h1>
             <p style={styles.description}>
-              Talk with matched roommates in real time. Click a message to
-              delete it or unsend your own message.
+              Talk with matched roommates in real time. Double-click a message
+              to react with 👍🏻. Your sent messages show 1 until they are read.
             </p>
           </div>
         </section>
 
+        {/* Chat Panel */}
         <section style={styles.chatPanel}>
+          {/* Sidebar */}
           <aside style={styles.sidebar}>
             <div style={styles.sidebarHeader}>
               <div>
@@ -695,7 +858,6 @@ export default function Chat() {
                           <p style={styles.opponentName}>
                             {conversation.opponentName}
                           </p>
-
                           <span style={styles.updatedAt}>
                             {conversation.updatedAt}
                           </span>
@@ -719,6 +881,7 @@ export default function Chat() {
             )}
           </aside>
 
+          {/* Thread */}
           <section style={styles.thread}>
             {selectedConversation ? (
               <>
@@ -740,7 +903,6 @@ export default function Chat() {
                       <h2 style={styles.threadName}>
                         {selectedConversation.opponentName}
                       </h2>
-
                       <p style={styles.threadMeta}>
                         {selectedConversation.opponentUniversity}
                       </p>
@@ -779,6 +941,9 @@ export default function Chat() {
                       const isMe = message.sender === "me";
                       const isMenuOpen = selectedMessageId === message.id;
                       const isDeleting = deletingMessageId === message.id;
+                      const isTempMessage = message.id.startsWith("temp-");
+                      const reaction =
+                        messageReactions[message.id] || message.reaction;
 
                       return (
                         <div
@@ -801,32 +966,55 @@ export default function Chat() {
                             }}
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <button
-                              type="button"
+                            <div
                               style={{
-                                ...styles.messageBubbleButton,
-                                ...(isMe
-                                  ? styles.myMessageBubble
-                                  : styles.opponentMessageBubble),
+                                ...styles.bubbleLine,
+                                flexDirection: isMe ? "row-reverse" : "row",
                               }}
-                              onClick={() => toggleMessageMenu(message.id)}
-                              title="Message options"
                             >
-                              <p style={styles.messageText}>{message.text}</p>
-
-                              <p
+                              <button
+                                type="button"
                                 style={{
-                                  ...styles.messageTime,
-                                  color: isMe
-                                    ? "rgba(255,255,255,0.6)"
-                                    : "#aaa",
+                                  ...styles.messageBubbleButton,
+                                  ...(isMe
+                                    ? styles.myMessageBubble
+                                    : styles.opponentMessageBubble),
+                                }}
+                                onClick={() => toggleMessageMenu(message.id)}
+                                onDoubleClick={() => toggleLikeReaction(message)}
+                                title="Click for options, double-click to like"
+                              >
+                                <p style={styles.messageText}>{message.text}</p>
+
+                                <p
+                                  style={{
+                                    ...styles.messageTime,
+                                    color: isMe
+                                      ? "rgba(255,255,255,0.6)"
+                                      : "#aaa",
+                                  }}
+                                >
+                                  {message.createdAt}
+                                </p>
+                              </button>
+
+                              {shouldShowUnreadOne(message) && (
+                                <span style={styles.unreadOne}>1</span>
+                              )}
+                            </div>
+
+                            {reaction && (
+                              <div
+                                style={{
+                                  ...styles.reactionBubble,
+                                  alignSelf: isMe ? "flex-end" : "flex-start",
                                 }}
                               >
-                                {message.createdAt}
-                              </p>
-                            </button>
+                                {reaction}
+                              </div>
+                            )}
 
-                            {isMenuOpen && (
+                            {isMenuOpen && !isTempMessage && (
                               <div
                                 style={{
                                   ...styles.messageMenu,
@@ -877,6 +1065,7 @@ export default function Chat() {
                   <div ref={messagesEndRef} />
                 </div>
 
+                {/* Input */}
                 <form style={styles.inputArea} onSubmit={sendMessage}>
                   <input
                     style={styles.messageInput}
@@ -1015,7 +1204,7 @@ const styles: Record<string, CSSProperties> = {
     fontSize: 14,
     color: "#888",
     lineHeight: 1.7,
-    maxWidth: 680,
+    maxWidth: 740,
     margin: 0,
   },
   chatPanel: {
@@ -1284,6 +1473,19 @@ const styles: Record<string, CSSProperties> = {
     flexDirection: "column",
     maxWidth: "68%",
   },
+  bubbleLine: {
+    display: "flex",
+    alignItems: "flex-end",
+    gap: 6,
+  },
+  unreadOne: {
+    fontSize: 11,
+    color: "#c0392b",
+    fontWeight: 700,
+    marginBottom: 4,
+    minWidth: 10,
+    textAlign: "center",
+  },
   messageBubbleButton: {
     width: "100%",
     border: "none",
@@ -1311,6 +1513,16 @@ const styles: Record<string, CSSProperties> = {
     fontSize: 10,
     margin: 0,
     textAlign: "right",
+  },
+  reactionBubble: {
+    marginTop: -4,
+    background: "#ffffff",
+    border: "1px solid #e8e4dc",
+    boxShadow: "0 4px 14px rgba(0,0,0,0.08)",
+    borderRadius: 16,
+    padding: "3px 8px",
+    fontSize: 15,
+    lineHeight: 1.2,
   },
   messageMenu: {
     position: "absolute",

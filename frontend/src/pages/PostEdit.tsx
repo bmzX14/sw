@@ -3,6 +3,7 @@ import type { ChangeEvent, CSSProperties, FormEvent } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { API } from "../lib/api";
+import AppNav from "../components/AppNav";
 import { supabase } from "../lib/supabase";
 
 function getRequestErrorMessage(err: any, fallback: string): string {
@@ -254,26 +255,25 @@ export default function PostEdit() {
   }
 
   return (
-    <div style={styles.page}>
+    <div style={styles.page} className="roomies-responsive">
       <div style={styles.bgAccent} />
 
-      <nav style={styles.nav}>
-        <p style={styles.brand}>roomies</p>
-        <div style={styles.navRight}>
-          <button style={styles.navLink} onClick={() => navigate("/browse")}>Browse</button>
-          <button style={styles.navLink} onClick={() => navigate("/matches")}>Matches</button>
-          <button style={styles.navLink} onClick={() => navigate("/chat")}>Chat</button>
-          <button style={styles.navLink} onClick={() => navigate("/review")}>Review</button>
-          <button style={styles.navLink} onClick={() => navigate("/profile")}>Profile</button>
-        </div>
-      </nav>
+      <AppNav
+        items={[
+          { key: "browse", label: "Browse", onClick: () => navigate("/browse") },
+          { key: "matches", label: "Matches", onClick: () => navigate("/matches") },
+          { key: "chat", label: "Chat", onClick: () => navigate("/chat") },
+          { key: "review", label: "Review", onClick: () => navigate("/review") },
+          { key: "profile", label: "Profile", onClick: () => navigate("/profile") },
+        ]}
+      />
 
-      <main style={styles.container}>
+      <main style={styles.container} className="roomies-mobile-container">
         <button style={styles.backBtn} onClick={() => navigate(`/post-detail/${id}`)}>
           Back to Post
         </button>
 
-        <section style={styles.header}>
+        <section style={styles.header} className="roomies-mobile-header">
           <p style={styles.kicker}>EDIT POST</p>
           <h1 style={styles.title}>Update Room Post</h1>
           <p style={styles.description}>
@@ -281,12 +281,12 @@ export default function PostEdit() {
           </p>
         </section>
 
-        <form style={styles.formPanel} onSubmit={submitPost}>
+        <form style={styles.formPanel} className="roomies-mobile-panel" onSubmit={submitPost}>
           {error && <div style={styles.errorBox}>{error}</div>}
 
           <div style={styles.section}>
             <p style={styles.sectionLabel}>Basic Information</p>
-            <div style={styles.grid2}>
+            <div style={styles.grid2} className="roomies-mobile-grid-1">
               <Field label="Post Type">
                 <select aria-label="Post Type" name="postType" value={form.postType} onChange={handleChange} style={styles.select}>
                   <option value="Room Available">Room Available</option>
@@ -300,7 +300,7 @@ export default function PostEdit() {
               </Field>
             </div>
 
-            <div style={styles.grid2}>
+            <div style={styles.grid2} className="roomies-mobile-grid-1">
               <Field label="Full Address">
                 <input aria-label="Full Address" name="address" value={form.address} onChange={handleChange} style={styles.input} />
               </Field>
@@ -309,7 +309,7 @@ export default function PostEdit() {
               </Field>
             </div>
 
-            <div style={styles.grid2}>
+            <div style={styles.grid2} className="roomies-mobile-grid-1">
               <Field label="Room Type">
                 <select
                   aria-label="Room Type"
@@ -332,7 +332,7 @@ export default function PostEdit() {
 
           <div style={styles.section}>
             <p style={styles.sectionLabel}>Budget & Dates</p>
-            <div style={styles.grid4}>
+            <div style={styles.grid4} className="roomies-mobile-grid-1">
               <Field label="Monthly Rent (10,000 KRW)">
                 <input aria-label="Monthly Rent" name="rent" type="number" min="0" value={form.rent} onChange={handleChange} style={styles.input} />
               </Field>
@@ -352,7 +352,7 @@ export default function PostEdit() {
 
           <div style={styles.section}>
             <p style={styles.sectionLabel}>Preferences</p>
-            <div style={styles.grid2}>
+            <div style={styles.grid2} className="roomies-mobile-grid-1">
               <Field label="Gender Preference">
                 <select aria-label="Gender Preference" name="genderPreference" value={form.genderPreference} onChange={handleChange} style={styles.select}>
                   <option value="No Preference">No Preference</option>

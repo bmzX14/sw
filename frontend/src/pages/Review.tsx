@@ -7,20 +7,15 @@ import type { CSSProperties, FormEvent } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API } from "../lib/api";
+import AppNav from "../components/AppNav";
 import { supabase } from "../lib/supabase";
+import { getCurrentUserProfile } from "../services/profileService";
 
 // ── Helper: Get JWT token ──
 const getToken = async () => {
   const { data: { session } } = await supabase.auth.getSession();
   return session?.access_token || "";
 };
-
-// Helper: Get current user 
-const getCurrentUser = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  return user;
-};
-
 
 // TypeScript Interfaces
 
@@ -65,7 +60,7 @@ export default function Review() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   // Fetch accepted matches from Express backend
-  const fetchMatches = useCallback(async (user: any) => {
+  const fetchMatches = useCallback(async (appUserId: string) => {
   try {
     const token = await getToken();
     const headers = { Authorization: `Bearer ${token}` };
@@ -73,7 +68,7 @@ export default function Review() {
     const { data: allMatches } = await axios.get(`${API}/matches/accepted`, { headers });
 
     const converted: CompletedMatch[] = allMatches.map((match: any) => {
-      const isRequester = match.requester_id === user.id;
+      const isRequester = match.requester_id === appUserId;
       const opponent = isRequester
         ? match.owner
         : match.requester;
@@ -126,9 +121,9 @@ export default function Review() {
 
   // Initialize: get current user and fetch accepted matches
   const initReview = useCallback(async () => {
-    const user = await getCurrentUser();
-    if (!user) { navigate("/login"); return; }
-    await fetchMatches(user);
+    const profile = await getCurrentUserProfile();
+    if (!profile?.id) { navigate("/login"); return; }
+    await fetchMatches(profile.id);
     setLoading(false);
   }, [fetchMatches, navigate]);
 
@@ -232,24 +227,23 @@ export default function Review() {
   }
 
   return (
-    <div style={styles.page}>
+    <div style={styles.page} className="roomies-responsive">
       <div style={styles.bgAccent} />
 
-      {/* ── Navigation ── */}
-      <nav style={styles.nav}>
-        <p style={styles.brand}>roomies</p>
-        <div style={styles.navRight}>
-          <button style={styles.navLink} onClick={() => navigate("/browse")}>Browse</button>
-          <button style={styles.navLink} onClick={() => navigate("/matches")}>Matches</button>
-          <button style={styles.navLink} onClick={() => navigate("/chat")}>Chat</button>
-          <button style={styles.navLink} onClick={() => navigate("/review")}>Review</button>
-          <button style={styles.navLink} onClick={() => navigate("/profile")}>Profile</button>
-        </div>
-      </nav>
+      <AppNav
+        activeKey="review"
+        items={[
+          { key: "browse", label: "Browse", onClick: () => navigate("/browse") },
+          { key: "matches", label: "Matches", onClick: () => navigate("/matches") },
+          { key: "chat", label: "Chat", onClick: () => navigate("/chat") },
+          { key: "review", label: "Review", onClick: () => navigate("/review") },
+          { key: "profile", label: "Profile", onClick: () => navigate("/profile") },
+        ]}
+      />
 
-      <main style={styles.container}>
+      <main style={styles.container} className="roomies-mobile-container">
         {/* ── Page Header ── */}
-        <section style={styles.header}>
+        <section style={styles.header} className="roomies-mobile-header">
           <div>
             <p style={styles.kicker}>REVIEW</p>
             <h1 style={styles.title}>Leave a Roommate Review</h1>
@@ -274,10 +268,10 @@ export default function Review() {
             </button>
           </div>
         ) : (
-          <section style={styles.layout}>
+          <section style={styles.layout} className="roomies-mobile-grid-1">
 
             {/* ── Left Panel: Match List ── */}
-            <aside style={styles.leftPanel}>
+            <aside style={styles.leftPanel} className="roomies-mobile-panel">
               <div style={styles.panelHeader}>
                 <p style={styles.sectionLabel}>Accepted Matches</p>
                 <h2 style={styles.panelTitle}>Review Queue</h2>
@@ -329,11 +323,11 @@ export default function Review() {
             </aside>
 
             {/* ── Right Panel: Review Form ── */}
-            <section style={styles.reviewPanel}>
+            <section style={styles.reviewPanel} className="roomies-mobile-panel">
               {selectedMatch ? (
                 <>
                   {/* Review target header */}
-                  <div style={styles.reviewHeader}>
+                  <div style={styles.reviewHeader} className="roomies-mobile-stack">
                     <div style={styles.reviewUser}>
                       <div style={styles.largeAvatar}>
                         {selectedMatch.roommatePhoto ? (
@@ -424,7 +418,7 @@ export default function Review() {
 
                   {/* Reviews list */}
                   <section style={styles.profilePreview}>
-                    <div style={styles.profilePreviewHeader}>
+                    <div style={styles.profilePreviewHeader} className="roomies-mobile-stack">
                       <div>
                         <p style={styles.sectionLabel}>Profile Preview</p>
                         <h2 style={styles.panelTitle}>Review Summary</h2>

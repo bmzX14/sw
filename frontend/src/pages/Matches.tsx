@@ -6,6 +6,7 @@ import axios from "axios";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API } from "../lib/api";
+import AppNav from "../components/AppNav";
 import { supabase } from "../lib/supabase";
 
 //Helper function to get JWT token from supabase session
@@ -177,23 +178,22 @@ export default function Matches() {
         );
     }
     return(
-        <div style={styles.page}>
+        <div style={styles.page} className="roomies-responsive">
             <div style={styles.bgAccent}/>
-            {/*Nav*/}
-            <nav style={styles.nav}>
-        <p style={styles.brand}>roomie</p>
-        <div style={styles.navRight}>
-            <button style={styles.navLink} onClick={() => navigate("/browse")}>Browse</button>
-            <button style={styles.navLink} onClick={() => navigate("/matches")}>Matches</button>
-            <button style={styles.navLink} onClick={() => navigate("/chat")}>Chat</button>
-            <button style={styles.navLink} onClick={() => navigate("/review")}>Review</button>
-            <button style={styles.navLink} onClick={() => navigate("/profile")}>Profile</button>
-            </div>
-            </nav>
-        <div style={styles.container}>
+            <AppNav
+              activeKey="matches"
+              items={[
+                { key: "browse", label: "Browse", onClick: () => navigate("/browse") },
+                { key: "matches", label: "Matches", onClick: () => navigate("/matches") },
+                { key: "chat", label: "Chat", onClick: () => navigate("/chat") },
+                { key: "review", label: "Review", onClick: () => navigate("/review") },
+                { key: "profile", label: "Profile", onClick: () => navigate("/profile") },
+              ]}
+            />
+        <div style={styles.container} className="roomies-mobile-container">
 
         {/* ── Page Header ── */}
-        <div style={styles.pageHeader}>
+        <div style={styles.pageHeader} className="roomies-mobile-header roomies-mobile-stack">
             <div>
                 <p style={styles.kicker}>ROOMMATE MATCHING</p>
                 <h1 style={styles.pageTitle}>My Matches</h1>
@@ -203,7 +203,7 @@ export default function Matches() {
             </div>
 
           {/* Stats row */}
-        <div style={styles.statsRow}>
+        <div style={styles.statsRow} className="roomies-mobile-wrap">
             <div style={styles.statBox}>
                 <p style={styles.statNumber}>{pendingIncoming}</p>
                 <p style={styles.statLabel}>Pending</p>
@@ -222,7 +222,7 @@ export default function Matches() {
         {error && <div style={styles.errorBox}>{error}</div>}
 
         {/* ── Tabs ── */}
-        <div style={styles.tabRow}>
+        <div style={styles.tabRow} className="roomies-mobile-scroll">
             <button
             style={{
                 ...styles.tab,
@@ -260,7 +260,7 @@ export default function Matches() {
                 </div>
             ) : (
                 incoming.map((match) => (
-                <div key={match.id} style={styles.matchCard}>
+                <div key={match.id} style={styles.matchCard} className="roomies-mobile-stack roomies-mobile-panel">
 
                   {/* Left — requester info */}
                     <div style={styles.userSection}>
@@ -300,14 +300,14 @@ export default function Matches() {
                 </div>
 
                   {/* Divider */}
-                <div style={styles.cardDivider} />
+                <div style={styles.cardDivider} className="roomies-mobile-divider-hidden" />
 
                   {/* Middle — post info */}
                 <div style={styles.postSection}>
                     <p style={styles.postLabel}>Interested in your post</p>
                     <p style={styles.postType}>{getPostTypeLabel(match.posts?.post_type || "")}</p>
                     <p style={styles.postDistrict}>📍 {match.posts?.district}</p>
-                    <div style={styles.postPriceRow}>
+                    <div style={styles.postPriceRow} className="roomies-mobile-wrap">
                         <span style={styles.postPrice}>
                         ₩{match.posts?.monthly_rent?.toLocaleString()}/mo
                         </span>
@@ -319,7 +319,7 @@ export default function Matches() {
                 </div>
 
                   {/* Right — status and actions */}
-                <div style={styles.actionSection}>
+                <div style={styles.actionSection} className="roomies-mobile-stack roomies-mobile-full">
                     {/* Status badge */}
                     <span style={{ ...styles.statusBadge, ...getStatusStyle(match.status) }}>
                         {match.status.charAt(0).toUpperCase() + match.status.slice(1)}
@@ -370,7 +370,7 @@ export default function Matches() {
                 </div>
             ) : (
                 outgoing.map((match) => (
-                    <div key={match.id} style={styles.matchCard}>
+                    <div key={match.id} style={styles.matchCard} className="roomies-mobile-stack roomies-mobile-panel">
 
                   {/* Left — owner info */}
                 <div style={styles.userSection}>
@@ -395,14 +395,14 @@ export default function Matches() {
                     </div>
                 </div>
 
-                <div style={styles.cardDivider} />
+                <div style={styles.cardDivider} className="roomies-mobile-divider-hidden" />
 
                   {/* Middle — post info */}
                 <div style={styles.postSection}>
                     <p style={styles.postLabel}>Your request for</p>
                     <p style={styles.postType}>{getPostTypeLabel(match.posts?.post_type || "")}</p>
                     <p style={styles.postDistrict}>📍 {match.posts?.district}</p>
-                    <div style={styles.postPriceRow}>
+                    <div style={styles.postPriceRow} className="roomies-mobile-wrap">
                         <span style={styles.postPrice}>
                         ₩{match.posts?.monthly_rent?.toLocaleString()}/mo
                         </span>
@@ -420,7 +420,7 @@ export default function Matches() {
                 </div>
 
                   {/* Right — status and actions */}
-                <div style={styles.actionSection}>
+                <div style={styles.actionSection} className="roomies-mobile-stack roomies-mobile-full">
                     <span style={{ ...styles.statusBadge, ...getStatusStyle(match.status) }}>
                         {match.status.charAt(0).toUpperCase() + match.status.slice(1)}
                     </span>
@@ -833,4 +833,3 @@ const styles: Record<string, React.CSSProperties> = {
         letterSpacing: "0.05em",
     },
 };
-

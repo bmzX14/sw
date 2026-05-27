@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API } from "../lib/api";
+import AppNav from "../components/AppNav";
 
 type PostType =
   | "Room Available"
@@ -125,33 +126,22 @@ export default function Browse() {
   });
 
   return (
-    <div style={styles.page}>
+    <div style={styles.page} className="roomies-responsive">
       <div style={styles.bgAccent} />
 
-      <nav style={styles.nav}>
-        <p style={styles.brand}>roomies</p>
+      <AppNav
+        activeKey="browse"
+        items={[
+          { key: "browse", label: "Browse", onClick: () => navigate("/browse") },
+          { key: "matches", label: "Matches", onClick: () => navigate("/matches") },
+          { key: "chat", label: "Chat", onClick: () => navigate("/chat") },
+          { key: "review", label: "Review", onClick: () => navigate("/review") },
+          { key: "profile", label: "Profile", onClick: () => navigate("/profile") },
+        ]}
+      />
 
-        <div style={styles.navRight}>
-  <button style={styles.navLink} onClick={() => navigate("/browse")}>
-    Browse
-  </button>
-  <button style={styles.navLink} onClick={() => navigate("/matches")}>
-    Matches
-  </button>
-  <button style={styles.navLink} onClick={() => navigate("/chat")}>
-    Chat
-  </button>
-  <button style={styles.navLink} onClick={() => navigate("/review")}>
-    Review
-  </button>
-  <button style={styles.navLink} onClick={() => navigate("/profile")}>
-    Profile
-  </button>
-</div>
-      </nav>
-
-      <main style={styles.container}>
-        <section style={styles.header}>
+      <main style={styles.container} className="roomies-mobile-container">
+        <section style={styles.header} className="roomies-mobile-header roomies-mobile-stack">
           <div>
             <p style={styles.kicker}>ROOMMATE POSTS</p>
             <h1 style={styles.title}>Browse Rooms</h1>
@@ -168,7 +158,7 @@ export default function Browse() {
 
         {error && <div style={styles.errorBox}>{error}</div>}
 
-        <section style={styles.filterBox}>
+        <section style={styles.filterBox} className="roomies-mobile-panel roomies-mobile-grid-1">
           <div style={styles.fieldGroup}>
             <label style={styles.label}>Post Type</label>
             <select

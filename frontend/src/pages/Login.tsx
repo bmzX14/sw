@@ -63,11 +63,11 @@ export default function Login() {
   };
 
   return (
-    <div style={styles.page}>
+    <div style={styles.page} className="roomies-responsive">
       <div style={styles.bgAccent}></div>
 
-      <div style={styles.container}>
-        <div style={styles.leftPanel}>
+      <div style={styles.container} className="roomies-mobile-auth-shell">
+        <div style={styles.leftPanel} className="roomies-mobile-auth-panel">
           <div>
             <p style={styles.brand}>roomies</p>
             <h1 style={styles.tagline}>Welcome Back.</h1>
@@ -84,7 +84,7 @@ export default function Login() {
           </div>
         </div>
 
-        <div style={styles.rightPanel}>
+        <div style={styles.rightPanel} className="roomies-mobile-auth-panel">
           <div style={styles.formCard}>
             <h2 style={styles.formTitle}>Sign in to your account</h2>
             <p style={styles.formSub}>
@@ -147,22 +147,18 @@ export default function Login() {
                 <div style={styles.dividerLine} />
               </div>
 
-              <div style={styles.socialStack}>
+              <div style={styles.socialStack} className="roomies-mobile-grid-1">
                 <SocialButton
+                  provider="google"
                   label="Continue with Google"
-                  providerLabel="G"
-                  providerColor="#ffffff"
-                  providerTextColor="#1a1a1a"
                   onClick={() => handleSocialLogin("google")}
                   disabled={loading || socialLoading !== null}
                   loading={socialLoading === "google"}
                 />
 
                 <SocialButton
+                  provider="kakao"
                   label="Continue with Kakao"
-                  providerLabel="K"
-                  providerColor="#FEE500"
-                  providerTextColor="#191600"
                   onClick={() => handleSocialLogin("kakao")}
                   disabled={loading || socialLoading !== null}
                   loading={socialLoading === "kakao"}
@@ -177,47 +173,85 @@ export default function Login() {
 }
 
 function SocialButton({
+  provider,
   label,
-  providerLabel,
-  providerColor,
-  providerTextColor,
   onClick,
   disabled,
   loading,
 }: {
+  provider: "google" | "kakao";
   label: string;
-  providerLabel: string;
-  providerColor: string;
-  providerTextColor: string;
   onClick: () => void;
   disabled: boolean;
   loading: boolean;
 }) {
+  const isGoogle = provider === "google";
+
   return (
     <button
       type="button"
       style={{
         ...styles.socialButton,
+        ...(isGoogle ? styles.googleButton : styles.kakaoButton),
         opacity: disabled ? 0.7 : 1,
         cursor: disabled ? "default" : "pointer",
       }}
       onClick={onClick}
       disabled={disabled}
     >
-      <span
-        style={{
-          ...styles.socialBadge,
-          background: providerColor,
-          color: providerTextColor,
-        }}
-      >
-        {providerLabel}
+      <span style={styles.socialLeading}>
+        <span
+          style={{
+            ...styles.socialBadge,
+            ...(isGoogle ? styles.googleBadge : styles.kakaoBadge),
+          }}
+        >
+          {isGoogle ? <GoogleIcon /> : <KakaoIcon />}
+        </span>
+
+        <span style={styles.socialButtonTextWrap}>
+          <span style={styles.socialButtonText}>
+            {loading ? "Redirecting..." : label}
+          </span>
+          <span style={styles.socialButtonSubtext}>
+            {/* {isGoogle
+              ? "Use your Google account"
+              : "Use your Kakao account"} */}
+          </span>
+        </span>
       </span>
 
-      <span style={styles.socialButtonText}>
-        {loading ? "Redirecting..." : label}
-      </span>
+      <span style={styles.socialArrow}>→</span>
     </button>
+  );
+}
+
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+      <path
+        fill="#4285F4"
+        d="M17.64 9.2045c0-.6382-.0573-1.2518-.1636-1.8409H9v3.4818h4.8436c-.2086 1.125-.8427 2.0782-1.7977 2.715v2.2582h2.9086c1.7018-1.5668 2.6855-3.8768 2.6855-6.6141Z"
+      />
+      <path
+        fill="#34A853"
+        d="M9 18c2.43 0 4.4673-.8059 5.9564-2.1818l-2.9086-2.2582c-.806  .54-1.8368.8591-3.0478.8591-2.3441 0-4.3282-1.5832-5.0373-3.7105H.9577v2.3291A8.9987 8.9987 0 0 0 9 18Z"
+      />
+      <path
+        fill="#FBBC05"
+        d="M3.9627 10.7086A5.4106 5.4106 0 0 1 3.6805 9c0-.5932.1018-1.1691.2822-1.7086V4.9623H.9577A8.9982 8.9982 0 0 0 0 9c0 1.4523.3477 2.8273.9577 4.0377l3.005-2.3291Z"
+      />
+      <path
+        fill="#EA4335"
+        d="M9 3.5795c1.3214 0 2.5077.4541 3.4418 1.3459l2.5814-2.5813C13.4636.8918 11.43 0 9 0A8.9987 8.9987 0 0 0 .9577 4.9623l3.005 2.3291C4.6718 5.1627 6.6559 3.5795 9 3.5795Z"
+      />
+    </svg>
+  );
+}
+
+function KakaoIcon() {
+  return (
+    <span style={styles.kakaoLetter}>K</span>
   );
 }
 
@@ -373,38 +407,87 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: "'Georgia', serif",
   },
   socialStack: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 14,
   },
   socialButton: {
     width: "100%",
     border: "1px solid #e6e1d8",
     background: "#fbfaf7",
     color: "#1a1a1a",
-    padding: "14px 16px",
+    padding: "14px 18px",
     display: "flex",
     alignItems: "center",
-    gap: 12,
+    justifyContent: "space-between",
+    gap: 14,
     fontSize: 14,
     fontFamily: "'Georgia', serif",
-    borderRadius: 2,
-    transition: "background 0.2s ease",
+    borderRadius: 14,
+    transition: "transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease",
+    boxShadow: "0 8px 24px rgba(26,26,26,0.04)",
+    textAlign: "left",
+  },
+  googleButton: {
+    background: "#ffffff",
+    border: "1px solid #e5e0d8",
+  },
+  kakaoButton: {
+    background: "#fffdf9",
+    border: "1px solid #e5e0d8",
   },
   socialBadge: {
-    width: 32,
-    height: 32,
+    width: 42,
+    height: 42,
     borderRadius: "50%",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: 14,
-    fontWeight: 700,
-    border: "1px solid rgba(0,0,0,0.08)",
     flexShrink: 0,
+  },
+  googleBadge: {
+    background: "#ffffff",
+    border: "1px solid #ece7df",
+    boxShadow: "0 2px 10px rgba(26,26,26,0.06)",
+  },
+  kakaoBadge: {
+    background: "#191600",
+    color: "#FEE500",
+    boxShadow: "0 4px 12px rgba(25,22,0,0.18)",
+  },
+  socialLeading: {
+    display: "flex",
+    alignItems: "center",
+    gap: 14,
+    minWidth: 0,
+    flex: 1,
+  },
+  socialButtonTextWrap: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 3,
+    minWidth: 0,
   },
   socialButtonText: {
     letterSpacing: "0.01em",
+    fontSize: 15,
+    color: "#1f1f1f",
+  },
+  socialButtonSubtext: {
+    fontSize: 11,
+    letterSpacing: "0.05em",
+    textTransform: "uppercase",
+    color: "#8e887f",
+  },
+  socialArrow: {
+    fontSize: 18,
+    color: "#6e675e",
+    flexShrink: 0,
+  },
+  kakaoLetter: {
+    fontSize: 19,
+    fontWeight: 700,
+    fontFamily: "'Georgia', serif",
   },
   dividerRow: {
     display: "flex",

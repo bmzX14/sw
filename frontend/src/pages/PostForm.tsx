@@ -6,6 +6,7 @@ import type { ChangeEvent, CSSProperties, FormEvent } from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API } from "../lib/api";
+import AppNav from "../components/AppNav";
 import { supabase } from "../lib/supabase";
 
 function getSubmitErrorMessage(err: any): string {
@@ -137,6 +138,12 @@ export default function PostForm() {
     ).then(previews => setPhotoPreviews(previews));
   };
 
+  const removePhotoAtIndex = (indexToRemove: number) => {
+    setPhotoFiles((prev) => prev.filter((_, index) => index !== indexToRemove));
+    setPhotoPreviews((prev) => prev.filter((_, index) => index !== indexToRemove));
+    setSuccess("");
+  };
+
   // Upload photos to Supabase Storage
   // File uploads go directly to Supabase Storage (agreed approach)
   const uploadPhotos = async (userId: string): Promise<string[]> => {
@@ -221,28 +228,26 @@ export default function PostForm() {
   //Render
 
   return (
-    <div style={styles.page}>
+    <div style={styles.page} className="roomies-responsive">
       <div style={styles.bgAccent} />
 
-      {/* ── Navigation ── */}
-      <nav style={styles.nav}>
-        <p style={styles.brand}>roomies</p>
-        <div style={styles.navRight}>
-           <button style={styles.navLink} onClick={() => navigate("/browse")}>Browse</button>
-  <button style={styles.navLink} onClick={() => navigate("/matches")}>Matches</button>
-  <button style={styles.navLink} onClick={() => navigate("/chat")}>Chat</button>
-  <button style={styles.navLink} onClick={() => navigate("/review")}>Review</button>
-  <button style={styles.navLink} onClick={() => navigate("/profile")}>Profile</button>
-        </div>
-      </nav>
+      <AppNav
+        items={[
+          { key: "browse", label: "Browse", onClick: () => navigate("/browse") },
+          { key: "matches", label: "Matches", onClick: () => navigate("/matches") },
+          { key: "chat", label: "Chat", onClick: () => navigate("/chat") },
+          { key: "review", label: "Review", onClick: () => navigate("/review") },
+          { key: "profile", label: "Profile", onClick: () => navigate("/profile") },
+        ]}
+      />
 
-      <main style={styles.container}>
+      <main style={styles.container} className="roomies-mobile-container">
         <button style={styles.backBtn} onClick={() => navigate("/browse")}>
           ← Back to Browse
         </button>
 
         {/* ── Page Header ── */}
-        <section style={styles.header}>
+        <section style={styles.header} className="roomies-mobile-header">
           <p style={styles.kicker}>CREATE POST</p>
           <h1 style={styles.title}>Write a Room Post</h1>
           <p style={styles.description}>
@@ -255,7 +260,7 @@ export default function PostForm() {
         {error && <div style={styles.errorBox}>{error}</div>}
         {success && <div style={styles.successBox}>{success}</div>}
 
-        <form style={styles.formPanel} onSubmit={submitPost}>
+        <form style={styles.formPanel} className="roomies-mobile-panel" onSubmit={submitPost}>
 
           {/* Error message */}
 
@@ -263,7 +268,7 @@ export default function PostForm() {
           <div style={styles.section}>
             <p style={styles.sectionLabel}>Basic Information</p>
 
-            <div style={styles.grid2}>
+            <div style={styles.grid2} className="roomies-mobile-grid-1">
               <div style={styles.fieldGroup}>
                 <label style={styles.label}>Post Type</label>
                 <select name="postType" value={form.postType}
@@ -283,7 +288,7 @@ export default function PostForm() {
               </div>
             </div>
 
-            <div style={styles.grid2}>
+            <div style={styles.grid2} className="roomies-mobile-grid-1">
               <div style={styles.fieldGroup}>
                 <label style={styles.label}>Full Address</label>
                 <input name="address" value={form.address}
@@ -299,7 +304,7 @@ export default function PostForm() {
               </div>
             </div>
 
-            <div style={styles.grid2}>
+            <div style={styles.grid2} className="roomies-mobile-grid-1">
               <div style={styles.fieldGroup}>
                 <label style={styles.label}>Room Type</label>
                 <select
@@ -324,7 +329,7 @@ export default function PostForm() {
           <div style={styles.section}>
             <p style={styles.sectionLabel}>Budget & Dates</p>
 
-            <div style={styles.grid4}>
+            <div style={styles.grid4} className="roomies-mobile-grid-1">
               <div style={styles.fieldGroup}>
                 <label style={styles.label}>Monthly Rent (10,000 KRW)</label>
                 <input name="rent" type="number" min="0"
@@ -366,7 +371,7 @@ export default function PostForm() {
           <div style={styles.section}>
             <p style={styles.sectionLabel}>Preferences</p>
 
-            <div style={styles.grid2}>
+            <div style={styles.grid2} className="roomies-mobile-grid-1">
               <div style={styles.fieldGroup}>
                 <label style={styles.label}>Gender Preference</label>
                 <select name="genderPreference" value={form.genderPreference}
@@ -424,8 +429,21 @@ export default function PostForm() {
             <div style={styles.previewGrid}>
               {photoPreviews.length > 0 ? (
                 photoPreviews.map((photo, index) => (
-                  <img key={index} src={photo}
-                    alt={`room-${index + 1}`} style={styles.previewImage} />
+                  <div key={`${photo}-${index}`} style={styles.previewCard}>
+                    <button
+                      type="button"
+                      style={styles.removePreviewBtn}
+                      onClick={() => removePhotoAtIndex(index)}
+                      aria-label={`Remove photo ${index + 1}`}
+                    >
+                      ×
+                    </button>
+                    <img
+                      src={photo}
+                      alt={`room-${index + 1}`}
+                      style={styles.previewImage}
+                    />
+                  </div>
                 ))
               ) : (
                 <p style={styles.hint}>No photos selected.</p>
@@ -496,7 +514,9 @@ const styles: Record<string, CSSProperties> = {
   uploadBox: { display: "flex", alignItems: "center", justifyContent: "center", border: "1.5px dashed #ddd", padding: "20px", cursor: "pointer", borderRadius: 2, marginTop: 8 },
   uploadText: { fontSize: 13, color: "#888" },
   previewGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginTop: 16 },
-  previewImage: { width: "100%", height: 130, objectFit: "cover", borderRadius: 2, border: "1px solid #ebe9e4" },
+  previewCard: { position: "relative" },
+  previewImage: { width: "100%", height: 130, objectFit: "cover", borderRadius: 2, border: "1px solid #ebe9e4", display: "block" },
+  removePreviewBtn: { position: "absolute", top: 8, right: 8, width: 28, height: 28, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.85)", background: "rgba(26,26,26,0.82)", color: "#fff", fontSize: 18, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 },
   hint: { fontSize: 11, color: "#bbb", marginTop: 8, lineHeight: 1.6 },
   submitBtn: { width: "100%", background: "#1a1a1a", border: "none", padding: "14px 24px", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", fontFamily: "'Georgia', serif", color: "#fff", borderRadius: 1, marginTop: 16 },
 };
