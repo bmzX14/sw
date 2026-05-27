@@ -5,6 +5,7 @@ import axios from "axios";
 import type { CSSProperties, FormEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import AppNav from "../components/AppNav";
 import { API } from "../lib/api";
 import { supabase } from "../lib/supabase";
 import { getCurrentUserProfile } from "../services/profileService";
@@ -734,45 +735,28 @@ export default function Chat() {
   }
 
   return (
-    <div style={styles.page}>
+    <div style={styles.page} className="roomies-responsive">
       <div style={styles.bgAccent} />
 
-      {/* Navigation */}
-      <nav style={styles.nav}>
-        <p style={styles.brand}>roomies</p>
+      <AppNav
+        activeKey="chat"
+        items={[
+          { key: "browse", label: "Browse", onClick: () => navigate("/browse") },
+          { key: "matches", label: "Matches", onClick: () => navigate("/matches") },
+          {
+            key: "chat",
+            label: "Chat",
+            onClick: () => navigate("/chat"),
+            badgeCount: totalUnreadCount,
+          },
+          { key: "review", label: "Review", onClick: () => navigate("/review") },
+          { key: "profile", label: "Profile", onClick: () => navigate("/profile") },
+        ]}
+      />
 
-        <div style={styles.navRight}>
-          <button style={styles.navLink} onClick={() => navigate("/browse")}>
-            Browse
-          </button>
-
-          <button style={styles.navLink} onClick={() => navigate("/matches")}>
-            Matches
-          </button>
-
-          <button
-            style={styles.navLinkActive}
-            onClick={() => navigate("/chat")}
-          >
-            Chat
-            {totalUnreadCount > 0 && (
-              <span style={styles.navBadge}>{totalUnreadCount}</span>
-            )}
-          </button>
-
-          <button style={styles.navLink} onClick={() => navigate("/review")}>
-            Review
-          </button>
-
-          <button style={styles.navLink} onClick={() => navigate("/profile")}>
-            Profile
-          </button>
-        </div>
-      </nav>
-
-      <main style={styles.container}>
+      <main style={styles.container} className="roomies-mobile-container">
         {/* Page Header */}
-        <section style={styles.header}>
+        <section style={styles.header} className="roomies-mobile-header roomies-mobile-panel">
           <div>
             <p style={styles.kicker}>MESSAGING</p>
             <h1 style={styles.title}>Chat</h1>
@@ -784,9 +768,12 @@ export default function Chat() {
         </section>
 
         {/* Chat Panel */}
-        <section style={styles.chatPanel}>
+        <section style={styles.chatPanel} className="roomies-mobile-grid-1">
           {/* Sidebar */}
-          <aside style={styles.sidebar}>
+          <aside
+            style={styles.sidebar}
+            className="roomies-mobile-panel roomies-mobile-sidebar"
+          >
             <div style={styles.sidebarHeader}>
               <div>
                 <p style={styles.sectionLabel}>Conversations</p>
@@ -866,10 +853,16 @@ export default function Chat() {
           </aside>
 
           {/* Thread */}
-          <section style={styles.thread}>
+          <section
+            style={styles.thread}
+            className="roomies-mobile-panel roomies-mobile-thread"
+          >
             {selectedConversation ? (
               <>
-                <div style={styles.threadHeader}>
+                <div
+                  style={styles.threadHeader}
+                  className="roomies-mobile-stack"
+                >
                   <div style={styles.threadUser}>
                     <div style={styles.threadAvatar}>
                       {selectedConversation.opponentPhoto ? (
@@ -895,6 +888,7 @@ export default function Chat() {
 
                   <button
                     style={styles.viewPostBtn}
+                    className="roomies-mobile-full"
                     onClick={() =>
                       navigate(`/post-detail/${selectedConversation.postId}`)
                     }
@@ -948,6 +942,7 @@ export default function Chat() {
                               ...styles.messageActionWrap,
                               alignItems: isMe ? "flex-end" : "flex-start",
                             }}
+                            className="roomies-mobile-message-wrap"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <div
@@ -1050,7 +1045,11 @@ export default function Chat() {
                 </div>
 
                 {/* Input */}
-                <form style={styles.inputArea} onSubmit={sendMessage}>
+                <form
+                  style={styles.inputArea}
+                  className="roomies-mobile-grid-1"
+                  onSubmit={sendMessage}
+                >
                   <input
                     style={styles.messageInput}
                     value={inputValue}
