@@ -31,15 +31,34 @@ async function requestMatch(req, res) {
         if (post.user_id === userId) {
             return res.status(400).json({ message: "Cannot send request to your own post." });
         }
-        //Check if a request is already sent to this post
+        // Check whether there is an existing request history for this post/user pair.
         const { data: existing } = await supabaseAdmin_1.supabaseAdmin
             .from("matches")
-            .select("*")
+            .select("id, status")
             .eq("post_id", post_id)
             .eq("requester_id", userId)
+            .order("created_at", { ascending: false })
+            .limit(1)
             .maybeSingle();
         if (existing) {
-            return res.status(400).json({ message: "You have already sent a request to this post." });
+            if (existing.status === "pending") {
+                return res.status(400).json({ message: "You already have a pending request for this post." });
+            }
+            if (existing.status === "accepted") {
+                return res.status(400).json({ message: "You already matched with this post." });
+            }
+            const { data: reopenedMatch, error: reopenError } = await supabaseAdmin_1.supabaseAdmin
+                .from("matches")
+                .update({
+                owner_id: post.user_id,
+                status: "pending",
+            })
+                .eq("id", existing.id)
+                .select("*")
+                .single();
+            if (reopenError)
+                throw reopenError;
+            return res.status(200).json(reopenedMatch);
         }
         //Create match request with pending status
         const { data, error: matchError } = await supabaseAdmin_1.supabaseAdmin

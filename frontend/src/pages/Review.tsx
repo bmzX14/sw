@@ -34,8 +34,7 @@ type CompletedMatch = {
 type ReviewItem = {
   id: string;
   matchId: string;
-  targetName: string;
-  targetUniversity: string;
+  reviewerName: string;
   rating: number;
   comment: string;
   createdAt: string;
@@ -97,7 +96,7 @@ export default function Review() {
 }, []);
 
   // Fetch reviews for a specific user from Express backend
-  const fetchReviews = useCallback(async (userId: string, match?: CompletedMatch) => {
+  const fetchReviews = useCallback(async (userId: string) => {
   if (!userId) return;
 
   try {
@@ -106,8 +105,7 @@ export default function Review() {
     const converted: ReviewItem[] = data.reviews.map((r: any) => ({
       id: r.id,
       matchId: r.match_id,
-      targetName: match?.roommateName || "Roomie",
-      targetUniversity: match?.roommateUniversity || "",
+      reviewerName: r.users?.name || "Anonymous",
       rating: r.rating,
       comment: r.comment || "",
       createdAt: new Date(r.created_at).toLocaleDateString(),
@@ -135,7 +133,7 @@ export default function Review() {
   useEffect(() => {
     if (selectedMatchId) {
       const match = matches.find(m => m.id === selectedMatchId);
-      if (match) fetchReviews(match.roommateId, match);
+      if (match) fetchReviews(match.roommateId);
     }
   }, [selectedMatchId, matches, fetchReviews]);
 
@@ -169,7 +167,7 @@ export default function Review() {
       });
 
       // Refresh reviews after submit
-      await fetchReviews(selectedMatch.roommateId, selectedMatch);
+      await fetchReviews(selectedMatch.roommateId);
 
       // Reset form
       setRating(0);
@@ -248,7 +246,7 @@ export default function Review() {
             <p style={styles.kicker}>REVIEW</p>
             <h1 style={styles.title}>Leave a Roommate Review</h1>
             <p style={styles.description}>
-              After a match is completed, you can rate your roommate and leave
+              After a match is accepted, you can rate your roommate and leave
               an optional comment. Reviews help students make safer roommate decisions.
             </p>
           </div>
@@ -280,7 +278,6 @@ export default function Review() {
               <div style={styles.matchList}>
                 {matches.map((match) => {
                   const active = selectedMatchId === match.id;
-                  const reviewed = reviewedMatchIds.includes(match.id);
                   return (
                     <button key={match.id}
                       style={{ ...styles.matchItem, ...(active ? styles.activeMatchItem : {}) }}
@@ -306,11 +303,7 @@ export default function Review() {
                       <div style={styles.matchContent}>
                         <div style={styles.matchTop}>
                           <p style={styles.roommateName}>{match.roommateName}</p>
-                          {reviewed ? (
-                            <span style={styles.doneBadge}>Reviewed</span>
-                          ) : (
-                            <span style={styles.pendingBadge}>Pending</span>
-                          )}
+                          <span style={styles.pendingBadge}>Accepted</span>
                         </div>
                         <p style={styles.matchMeta}>{match.roommateUniversity}</p>
                         <p style={styles.matchPost}>{match.postTitle}</p>
@@ -438,8 +431,8 @@ export default function Review() {
                           <article key={review.id} style={styles.reviewCard}>
                             <div style={styles.reviewCardTop}>
                               <div>
-                                <p style={styles.reviewTarget}>{review.targetName}</p>
-                                <p style={styles.reviewUniversity}>{review.targetUniversity}</p>
+                                <p style={styles.reviewTarget}>{review.reviewerName}</p>
+                                <p style={styles.reviewUniversity}>Reviewer</p>
                               </div>
                               <span style={styles.reviewDate}>{review.createdAt}</span>
                             </div>

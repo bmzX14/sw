@@ -35,7 +35,7 @@ const formatMessageTime = (dateStr: string) => {
 // Conversation = an accepted match with chat info
 type Conversation = {
   id: string;
-  opponentName: string;
+  opponentName: string; //match id
   opponentUniversity: string;
   opponentPhoto: string;
   postTitle: string;
@@ -47,7 +47,7 @@ type Conversation = {
 
 // Individual chat message
 type Message = {
-  id: string;
+  id: string;   //match id
   conversationId: string;
   sender: "me" | "opponent";
   senderName: string;
@@ -60,6 +60,23 @@ type Message = {
   isReadByOpponent?: boolean;
   reaction?: string | null;
 };
+
+function buildMessage(matchId: string, msg: any, currentUserId?: string): Message {
+  const isMine = msg.sender_id === currentUserId;
+
+  return {
+    id: msg.id,
+    conversationId: matchId,
+    sender: isMine ? "me" : "opponent",
+    senderName: isMine ? "Me" : msg.users?.name || "Roomie",
+    text: msg.content,
+    createdAt: formatMessageTime(msg.created_at),
+    sender_id: msg.sender_id,
+    readAt: msg.read_at || null,
+    isReadByOpponent: isMine ? Boolean(msg.read_at || msg.is_read_by_opponent) : false,
+    reaction: msg.reaction || null,
+  };
+}
 
 export default function Chat() {
   const navigate = useNavigate();
@@ -203,6 +220,7 @@ export default function Chat() {
         summaries.map((summary) => [summary.matchId, summary])
       );
 
+      // Convert matches to conversation format
       const convs: Conversation[] = allMatches.map((match: any) => {
         const isRequester = match.requester_id === user.id;
         const opponent = isRequester ? match.owner : match.requester;
@@ -238,29 +256,13 @@ export default function Chat() {
   const fetchMessages = async (matchId: string) => {
     try {
       const token = await getToken();
-
       const { data } = await axios.get(`${API}/messages/${matchId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      const formatted: Message[] = data.map((msg: any) => {
-        const isMine = msg.sender_id === currentUserRef.current?.id;
-
-        return {
-          id: msg.id,
-          conversationId: matchId,
-          sender: isMine ? "me" : "opponent",
-          senderName: isMine ? "Me" : msg.users?.name || "Roomie",
-          text: msg.content,
-          createdAt: formatMessageTime(msg.created_at),
-          sender_id: msg.sender_id,
-
-          // These fields are optional. They will work if backend later sends them.
-          readAt: msg.read_at || null,
-          isReadByOpponent: Boolean(msg.read_at || msg.is_read_by_opponent),
-          reaction: msg.reaction || null,
-        };
-      });
+      const formatted: Message[] = data.map((msg: any) =>
+        buildMessage(matchId, msg, currentUserRef.current?.id)
+      );
 
       setMessages((prev) => [
         ...prev.filter((m) => m.conversationId !== matchId),
@@ -278,7 +280,6 @@ export default function Chat() {
 
       if (formatted.length > 0) {
         const last = formatted[formatted.length - 1];
-
         setConversations((prev) =>
           prev.map((c) =>
             c.id === matchId
@@ -313,21 +314,11 @@ export default function Chat() {
         (payload) => {
           const newMsg = payload.new as any;
           const isMine = newMsg.sender_id === currentUserRef.current?.id;
-
-          const formatted: Message = {
-            id: newMsg.id,
-            conversationId: matchId,
-            sender: isMine ? "me" : "opponent",
-            senderName: isMine ? "Me" : "Roomie",
-            text: newMsg.content,
-            createdAt: formatMessageTime(newMsg.created_at),
-            sender_id: newMsg.sender_id,
-            readAt: newMsg.read_at || null,
-            isReadByOpponent: Boolean(
-              newMsg.read_at || newMsg.is_read_by_opponent
-            ),
-            reaction: newMsg.reaction || null,
-          };
+          const formatted = buildMessage(
+            matchId,
+            { ...newMsg, users: { name: "Roomie" } },
+            currentUserRef.current?.id
+          );
 
           setMessages((prev) => {
             const withoutTemp = prev.filter(
@@ -491,14 +482,13 @@ export default function Chat() {
               ? {
                   ...message,
                   readAt: data.readAt,
-                  isReadByOpponent: true,
                 }
               : message
           )
         );
       }
-    } catch {
-      // Ignore if the backend is temporarily unavailable.
+    } catch (err){
+      console.error("Mark as read failed:", err); // ← now you can see errors
     }
   };
 
@@ -513,6 +503,7 @@ export default function Chat() {
     setSending(true);
     setInputValue("");
 
+    // Optimistically add message to UI immediately
     try {
       const token = await getToken();
 
@@ -521,19 +512,12 @@ export default function Chat() {
         { content: trimmedText },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-
-      const realMessage: Message = {
-        id: data.id,
-        conversationId: selectedConversationId,
-        sender: "me",
-        senderName: "Me",
-        text: data.content,
-        createdAt: formatMessageTime(data.created_at),
-        sender_id: data.sender_id,
-        readAt: data.read_at || null,
-        isReadByOpponent: Boolean(data.read_at || data.is_read_by_opponent),
-        reaction: data.reaction || null,
-      };
+      // add real message directly from API response
+      const realMessage = buildMessage(
+        selectedConversationId,
+        data,
+        currentUserRef.current?.id
+      );
 
       setMessages((prev) => {
         if (prev.find((m) => m.id === realMessage.id)) return prev;

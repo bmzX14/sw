@@ -4,6 +4,72 @@ import { AuthenticatedRequest } from "../middleware/auth.middleware";
 
 // Post controller for browse, detail, create, update, and delete flows.
 
+function toOptionalNumber(value: unknown) {
+    if (value === null || value === undefined || value === "") {
+        return null;
+    }
+
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) ? numericValue : NaN;
+}
+
+function validatePostPayload(payload: {
+    post_type?: unknown;
+    district?: unknown;
+    monthly_rent?: unknown;
+    deposit?: unknown;
+    available_from?: unknown;
+    available_until?: unknown;
+    description_en?: unknown;
+    latitude?: unknown;
+    longitude?: unknown;
+}) {
+    const monthlyRent = toOptionalNumber(payload.monthly_rent);
+    const deposit = toOptionalNumber(payload.deposit);
+    const latitude = toOptionalNumber(payload.latitude);
+    const longitude = toOptionalNumber(payload.longitude);
+    const availableFrom = typeof payload.available_from === "string" ? payload.available_from.trim() : "";
+    const availableUntil = typeof payload.available_until === "string" ? payload.available_until.trim() : "";
+    const descriptionEn = typeof payload.description_en === "string" ? payload.description_en.trim() : "";
+
+    if (!payload.post_type || !payload.district) {
+        return "Post type and district are required.";
+    }
+
+    if (monthlyRent === null || Number.isNaN(monthlyRent) || monthlyRent < 0) {
+        return "Monthly rent must be a valid non-negative number.";
+    }
+
+    if (deposit !== null && (Number.isNaN(deposit) || deposit < 0)) {
+        return "Deposit must be a valid non-negative number.";
+    }
+
+    if (!availableFrom) {
+        return "Move-in date is required.";
+    }
+
+    if (!descriptionEn) {
+        return "English description is required.";
+    }
+
+    if (availableUntil && new Date(availableUntil) < new Date(availableFrom)) {
+        return "Move-out date must be on or after the move-in date.";
+    }
+
+    const hasLatitude = latitude !== null;
+    const hasLongitude = longitude !== null;
+
+    if (hasLatitude !== hasLongitude) {
+        return "Latitude and longitude must be provided together.";
+    }
+
+    if (hasLatitude && (Number.isNaN(latitude) || Number.isNaN(longitude))) {
+        return "Location coordinates must be valid numbers.";
+    }
+
+    return null;
+}
+
 // Return public active posts for the browse page.
 export async function getAllPosts(req: Request, res: Response) {
     const { type, district, minRent, maxRent, gender } = req.query;
@@ -27,6 +93,8 @@ export async function getAllPosts(req: Request, res: Response) {
                 status,
                 near_university,
                 created_at,
+                latitude,
+                longitude,
                 users (
                     id,
                     name,
@@ -168,12 +236,25 @@ export async function createPost(req: AuthenticatedRequest, res: Response) {
         description_en, 
         description_ko, 
         photos,
+        latitude,
+        longitude,
     } = req.body;
 
-    //validate required fields
-    if (!post_type || !district || !monthly_rent) {
-        return res.status(400).json({ 
-            message: "Post type, district and monthly rent are required."
+    const validationError = validatePostPayload({
+        post_type,
+        district,
+        monthly_rent,
+        deposit,
+        available_from,
+        available_until,
+        description_en,
+        latitude,
+        longitude,
+    });
+
+    if (validationError) {
+        return res.status(400).json({
+            message: validationError,
         });
     }
     try{
@@ -198,6 +279,8 @@ export async function createPost(req: AuthenticatedRequest, res: Response) {
                 description_ko, 
                 photos,
                 status: "active",
+                latitude,
+                longitude,
             })
             .select("*")
             .single();
@@ -242,7 +325,25 @@ export async function updatePost(req: AuthenticatedRequest, res: Response) {
         description_ko,
         photos,
         status,
+        latitude,
+        longitude,
     } = req.body;
+
+    const validationError = validatePostPayload({
+        post_type,
+        district,
+        monthly_rent,
+        deposit,
+        available_from,
+        available_until,
+        description_en,
+        latitude,
+        longitude,
+    });
+
+    if (validationError) {
+        return res.status(400).json({ message: validationError });
+    }
     
     try{
         const { data, error} = await supabaseAdmin
@@ -265,6 +366,8 @@ export async function updatePost(req: AuthenticatedRequest, res: Response) {
                 description_ko,
                 photos,
                 status,
+                latitude,
+                longitude,
             })
             .eq("id", id)
             .eq("user_id", userId) // ensure only owner can update

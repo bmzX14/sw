@@ -30,7 +30,59 @@ type Post = {
   verified: boolean;
   createdAt: string;
   status: "active" | "closed";
+  latitude: number | null;
+  longitude: number | null;
 };
+
+let kakaoMapsReadyPromise: Promise<any> | null = null;
+
+function loadKakaoMapsSdk() {
+  if (kakaoMapsReadyPromise) {
+    return kakaoMapsReadyPromise;
+  }
+
+  kakaoMapsReadyPromise = new Promise((resolve, reject) => {
+    if (typeof window === "undefined") {
+      reject(new Error("Window is not available."));
+      return;
+    }
+
+    const finishLoading = () => {
+      const kakao = (window as any).kakao;
+
+      if (!kakao?.maps?.load) {
+        reject(new Error("Kakao Maps SDK did not initialize correctly."));
+        return;
+      }
+
+      kakao.maps.load(() => resolve(kakao));
+    };
+
+    const existingKakao = (window as any).kakao;
+    if (existingKakao?.maps?.load) {
+      finishLoading();
+      return;
+    }
+
+    const script = document.querySelector<HTMLScriptElement>(
+      'script[src*="dapi.kakao.com/v2/maps/sdk.js"]'
+    );
+
+    if (!script) {
+      reject(new Error("Kakao Maps SDK script tag was not found."));
+      return;
+    }
+
+    script.addEventListener("load", finishLoading, { once: true });
+    script.addEventListener(
+      "error",
+      () => reject(new Error("Failed to load Kakao Maps SDK.")),
+      { once: true }
+    );
+  });
+
+  return kakaoMapsReadyPromise;
+}
 
 function normalizePhotos(value: unknown): string[] {
   if (Array.isArray(value)) {
@@ -70,6 +122,7 @@ export default function Browse() {
   const [regionFilter, setRegionFilter] = useState("All");
   const [maxBudget, setMaxBudget] = useState("");
   const [error, setError] = useState("");
+  const [mapError, setMapError] = useState("");
 
   useEffect(() => {
     fetchPosts();
@@ -101,6 +154,8 @@ export default function Browse() {
       verified: p.users?.is_verified || false,
       createdAt: new Date(p.created_at).toLocaleDateString(),
       status: p.status || "active",
+      latitude: p.latitude || null,
+      longitude: p.longitude || null,
     }));
 
     setPosts(mapped);
@@ -124,6 +179,88 @@ export default function Browse() {
 
     return matchStatus && matchType && matchRegion && matchBudget;
   });
+
+  useEffect(() => {
+    const container = document.getElementById("kakao-map");
+    if (!container) return;
+    let isCancelled = false;
+
+    loadKakaoMapsSdk()
+      .then((kakao) => {
+        if (isCancelled) return;
+
+        setMapError("");
+        container.innerHTML = "";
+
+        const map = new kakao.maps.Map(container, {
+          center: new kakao.maps.LatLng(37.5665, 126.9780),
+          level: 8,
+        });
+
+        const postsToShow = filteredPosts;
+        const bounds = new kakao.maps.LatLngBounds();
+        let hasMarker = false;
+
+        (window as any).navigateToPost = (postId: string) => {
+          navigate(`/post-detail/${postId}`);
+        };
+
+        postsToShow.forEach((post: Post) => {
+          if (post.latitude === null || post.longitude === null) return;
+
+          hasMarker = true;
+          const position = new kakao.maps.LatLng(post.latitude, post.longitude);
+          bounds.extend(position);
+
+          const marker = new kakao.maps.Marker({ position, map });
+
+          const content = `<div
+    onclick="window.navigateToPost('${post.id}')"
+    style="padding:12px 14px;font-family:Georgia,serif;min-width:200px;cursor:pointer;">
+    <p style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:#aaa;margin:0 0 6px;">
+      ${post.postType}
+    </p>
+    <p style="font-size:14px;font-weight:600;color:#1a1a1a;margin:0 0 4px;">
+      ${post.region}
+    </p>
+    <p style="font-size:13px;color:#888;margin:0 0 8px;">
+      ${post.rent}0,000 KRW / month
+    </p>
+    <p style="font-size:11px;color:#2E86AB;margin:0;text-decoration:underline;">
+      View Post →
+    </p>
+  </div>`;
+
+          const infoWindow = new kakao.maps.InfoWindow({
+            content,
+            removable: true,
+          });
+
+          kakao.maps.event.addListener(marker, "click", () => {
+            infoWindow.open(map, marker);
+          });
+        });
+
+        if (hasMarker) {
+          map.setBounds(bounds);
+        }
+      })
+      .catch((sdkError: Error) => {
+        if (isCancelled) return;
+
+        console.error("Failed to initialize Kakao Map", sdkError);
+        setMapError(
+          "Map could not be loaded in this browser right now. Please refresh once or check Safari content blockers."
+        );
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [filteredPosts, navigate]);
+
+
+
 
   return (
     <div style={styles.page} className="roomies-responsive">
@@ -204,6 +341,20 @@ export default function Browse() {
             />
           </div>
         </section>
+
+        {mapError && <div style={styles.errorBox}>{mapError}</div>}
+
+        {/* Map */}
+          <div
+            id="kakao-map"
+            style={{
+              width: "100%",
+              height: "450px",
+              marginBottom: 28,
+              borderRadius: 2,
+              boxShadow: "0 4px 40px rgba(0,0,0,0.06)",
+            }}
+          />
 
         <section style={styles.postGrid}>
           {filteredPosts.length > 0 ? (

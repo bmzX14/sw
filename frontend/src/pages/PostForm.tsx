@@ -15,6 +15,29 @@ function getSubmitErrorMessage(err: any): string {
   return err?.message || "Failed to create post. Please try again.";
 }
 
+function validatePostForm(form: typeof initialForm) {
+  if (!form.region.trim() || !form.rent.trim() || !form.moveInDate.trim() || !form.descriptionEn.trim()) {
+    return "Please fill in all required fields.";
+  }
+
+  const rent = Number(form.rent);
+  const deposit = form.deposit.trim() ? Number(form.deposit) : 0;
+
+  if (!Number.isFinite(rent) || rent < 0) {
+    return "Monthly rent must be a valid non-negative number.";
+  }
+
+  if (!Number.isFinite(deposit) || deposit < 0) {
+    return "Deposit must be a valid non-negative number.";
+  }
+
+  if (form.moveOutDate && new Date(form.moveOutDate) < new Date(form.moveInDate)) {
+    return "Move-out date must be on or after the move-in date.";
+  }
+
+  return "";
+}
+
 // Helper: Get JWT token 
 const getToken = async () => {
   const { data: { session } } = await supabase.auth.getSession();
@@ -70,7 +93,34 @@ const roomTypeOptions = [
   { label: "Apartment", value: "apartment" },
   { label: "Shared House", value: "shared_house" },
 ];
-
+const SEOUL_DISTRICTS = [
+  { name: "Gangnam-gu", lat: 37.5172, lng: 127.0473 },
+  { name: "Gangdong-gu", lat: 37.5301, lng: 127.1238 },
+  { name: "Gangbuk-gu", lat: 37.6396, lng: 127.0253 },
+  { name: "Gangseo-gu", lat: 37.5509, lng: 126.8495 },
+  { name: "Gwanak-gu", lat: 37.4784, lng: 126.9516 },
+  { name: "Gwangjin-gu", lat: 37.5384, lng: 127.0822 },
+  { name: "Guro-gu", lat: 37.4954, lng: 126.8874 },
+  { name: "Geumcheon-gu", lat: 37.4600, lng: 126.9002 },
+  { name: "Nowon-gu", lat: 37.6542, lng: 127.0568 },
+  { name: "Dobong-gu", lat: 37.6688, lng: 127.0471 },
+  { name: "Dongdaemun-gu", lat: 37.5744, lng: 127.0396 },
+  { name: "Dongjak-gu", lat: 37.5124, lng: 126.9393 },
+  { name: "Mapo-gu", lat: 37.5663, lng: 126.9014 },
+  { name: "Seodaemun-gu", lat: 37.5791, lng: 126.9368 },
+  { name: "Seocho-gu", lat: 37.4836, lng: 127.0327 },
+  { name: "Seongdong-gu", lat: 37.5633, lng: 127.0369 },
+  { name: "Seongbuk-gu", lat: 37.5894, lng: 127.0167 },
+  { name: "Songpa-gu", lat: 37.5145, lng: 127.1059 },
+  { name: "Yangcheon-gu", lat: 37.5270, lng: 126.8561 },
+  { name: "Yeongdeungpo-gu", lat: 37.5263, lng: 126.8963 },
+  { name: "Yongsan-gu", lat: 37.5326, lng: 126.9905 },
+  { name: "Eunpyeong-gu", lat: 37.6027, lng: 126.9291 },
+  { name: "Jongno-gu", lat: 37.5735, lng: 126.9790 },
+  { name: "Jung-gu", lat: 37.5640, lng: 126.9975 },
+  { name: "Jungnang-gu", lat: 37.6063, lng: 127.0928 },
+];
+//Form State
 const initialForm = {
   postType: "Room Available",
   title: "",
@@ -85,6 +135,8 @@ const initialForm = {
   genderPreference: "No Preference",
   descriptionKo: "",
   descriptionEn: "",
+  latitude: null as number | null,
+  longitude: null as number | null,
 };
 
 
@@ -110,6 +162,17 @@ export default function PostForm() {
     setForm(prev => ({ ...prev, [name]: value }));
     setError("");
     setSuccess("");
+  };
+  const handleDistrictChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedName = e.target.value;
+    const district = SEOUL_DISTRICTS.find(d => d.name === selectedName);
+
+    setForm(prev => ({
+      ...prev,
+      region: selectedName,
+      latitude: district?.lat || null,
+      longitude: district?.lng || null,
+    }));
   };
 
   //  Toggle lifestyle tag 
@@ -174,8 +237,9 @@ export default function PostForm() {
     setSuccess("");
 
     // Validate required fields
-    if (!form.region.trim() || !form.rent.trim() || !form.moveInDate.trim() || !form.descriptionEn.trim()) {
-      setError("Please fill in all required fields.");
+    const validationError = validatePostForm(form);
+    if (validationError) {
+      setError(validationError);
       return;
     }
 
@@ -207,6 +271,8 @@ export default function PostForm() {
         description_ko: form.descriptionKo || form.descriptionEn,       // Same for now
         photos: photoUrls,
         status: "active",
+        latitude: form.latitude, //add coordinates
+        longitude: form.longitude, //add coordinates
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -282,9 +348,15 @@ export default function PostForm() {
 
               <div style={styles.fieldGroup}>
                 <label style={styles.label}>Region / District</label>
-                <input name="region" value={form.region}
-                  onChange={handleChange} style={styles.input}
-                  placeholder="e.g. Seodaemun-gu" />
+                <select
+                  value={form.region}
+                  onChange={handleDistrictChange}
+                  style={styles.select}>
+                  <option value="">Select a district</option>
+                  {SEOUL_DISTRICTS.map(d => (
+                    <option key={d.name} value={d.name}>{d.name}</option>
+                  ))}
+                </select>
               </div>
             </div>
 
