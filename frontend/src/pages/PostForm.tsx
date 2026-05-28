@@ -6,6 +6,7 @@ import type { ChangeEvent, CSSProperties, FormEvent } from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API } from "../lib/api";
+import { resolveListingCoordinates } from "../lib/kakaoMaps";
 import AppNav from "../components/AppNav";
 import { supabase } from "../lib/supabase";
 
@@ -250,6 +251,12 @@ export default function PostForm() {
       if (!user) { navigate("/login"); return; }
 
       const token = await getToken();
+      const coordinates = await resolveListingCoordinates({
+        address: form.address,
+        district: form.region,
+        fallbackLatitude: form.latitude,
+        fallbackLongitude: form.longitude,
+      });
 
       // Upload photos to Supabase Storage first
       const photoUrls = await uploadPhotos(user.id);
@@ -271,8 +278,8 @@ export default function PostForm() {
         description_ko: form.descriptionKo || form.descriptionEn,       // Same for now
         photos: photoUrls,
         status: "active",
-        latitude: form.latitude, //add coordinates
-        longitude: form.longitude, //add coordinates
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });

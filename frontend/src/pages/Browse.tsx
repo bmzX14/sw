@@ -3,6 +3,7 @@ import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API } from "../lib/api";
+import { loadKakaoMapsSdk } from "../lib/kakaoMaps";
 import AppNav from "../components/AppNav";
 
 type PostType =
@@ -34,56 +35,6 @@ type Post = {
   longitude: number | null;
 };
 
-let kakaoMapsReadyPromise: Promise<any> | null = null;
-
-function loadKakaoMapsSdk() {
-  if (kakaoMapsReadyPromise) {
-    return kakaoMapsReadyPromise;
-  }
-
-  kakaoMapsReadyPromise = new Promise((resolve, reject) => {
-    if (typeof window === "undefined") {
-      reject(new Error("Window is not available."));
-      return;
-    }
-
-    const finishLoading = () => {
-      const kakao = (window as any).kakao;
-
-      if (!kakao?.maps?.load) {
-        reject(new Error("Kakao Maps SDK did not initialize correctly."));
-        return;
-      }
-
-      kakao.maps.load(() => resolve(kakao));
-    };
-
-    const existingKakao = (window as any).kakao;
-    if (existingKakao?.maps?.load) {
-      finishLoading();
-      return;
-    }
-
-    const script = document.querySelector<HTMLScriptElement>(
-      'script[src*="dapi.kakao.com/v2/maps/sdk.js"]'
-    );
-
-    if (!script) {
-      reject(new Error("Kakao Maps SDK script tag was not found."));
-      return;
-    }
-
-    script.addEventListener("load", finishLoading, { once: true });
-    script.addEventListener(
-      "error",
-      () => reject(new Error("Failed to load Kakao Maps SDK.")),
-      { once: true }
-    );
-  });
-
-  return kakaoMapsReadyPromise;
-}
-
 function normalizePhotos(value: unknown): string[] {
   if (Array.isArray(value)) {
     return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
@@ -112,6 +63,31 @@ function getRequestErrorMessage(err: any, fallback: string): string {
   if (err?.response?.data?.message) return err.response.data.message;
   if (err?.code === "ERR_NETWORK") return `Cannot connect to backend at ${API}. Please start the backend server.`;
   return err?.message || fallback;
+}
+
+function getCoordinateKey(latitude: number, longitude: number) {
+  return `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
+}
+
+function getOffsetMarkerPosition(
+  kakao: any,
+  latitude: number,
+  longitude: number,
+  duplicateIndex: number,
+  duplicateCount: number
+) {
+  if (duplicateCount <= 1) {
+    return new kakao.maps.LatLng(latitude, longitude);
+  }
+
+  const angle = (Math.PI * 2 * duplicateIndex) / duplicateCount;
+  const latRadius = 0.00045;
+  const lngRadius = latRadius / Math.max(Math.cos((latitude * Math.PI) / 180), 0.35);
+
+  return new kakao.maps.LatLng(
+    latitude + Math.sin(angle) * latRadius,
+    longitude + Math.cos(angle) * lngRadius
+  );
 }
 
 export default function Browse() {
@@ -199,6 +175,7 @@ export default function Browse() {
 
         const postsToShow = filteredPosts;
         const bounds = new kakao.maps.LatLngBounds();
+        const duplicateCounts = new Map<string, number>();
         let hasMarker = false;
 
         (window as any).navigateToPost = (postId: string) => {
@@ -208,8 +185,28 @@ export default function Browse() {
         postsToShow.forEach((post: Post) => {
           if (post.latitude === null || post.longitude === null) return;
 
+          const key = getCoordinateKey(post.latitude, post.longitude);
+          duplicateCounts.set(key, (duplicateCounts.get(key) || 0) + 1);
+        });
+
+        const duplicateIndexes = new Map<string, number>();
+
+        postsToShow.forEach((post: Post) => {
+          if (post.latitude === null || post.longitude === null) return;
+
+          const key = getCoordinateKey(post.latitude, post.longitude);
+          const duplicateIndex = duplicateIndexes.get(key) || 0;
+          const duplicateCount = duplicateCounts.get(key) || 1;
+
+          duplicateIndexes.set(key, duplicateIndex + 1);
           hasMarker = true;
-          const position = new kakao.maps.LatLng(post.latitude, post.longitude);
+          const position = getOffsetMarkerPosition(
+            kakao,
+            post.latitude,
+            post.longitude,
+            duplicateIndex,
+            duplicateCount
+          );
           bounds.extend(position);
 
           const marker = new kakao.maps.Marker({ position, map });

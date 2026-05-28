@@ -3,6 +3,7 @@ import type { ChangeEvent, CSSProperties, FormEvent } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { API } from "../lib/api";
+import { resolveListingCoordinates } from "../lib/kakaoMaps";
 import AppNav from "../components/AppNav";
 import { supabase } from "../lib/supabase";
 
@@ -297,6 +298,12 @@ export default function PostEdit() {
     try {
       const token = await getToken();
       const nextPhotos = photoFiles.length > 0 ? await uploadPhotos() : existingPhotos;
+      const coordinates = await resolveListingCoordinates({
+        address: form.address,
+        district: form.region,
+        fallbackLatitude: form.latitude,
+        fallbackLongitude: form.longitude,
+      });
 
       await axios.put(`${API}/posts/${id}`, {
         post_type: postTypeMap[form.postType],
@@ -313,16 +320,13 @@ export default function PostEdit() {
         description_en: form.descriptionEn,
         description_ko: form.descriptionKo,
         photos: nextPhotos,
-        latitude: form.latitude, //add coordinates
-        longitude: form.longitude, //add coordinates
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
       }, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
       navigate(`/post-detail/${id}`);
-      console.log("form.region:", form.region);
-      console.log("form.latitude:", form.latitude);
-      console.log("form.longitude:", form.longitude);
     } catch (err: any) {
       setError(getRequestErrorMessage(err, "Failed to update post."));
     } finally {
