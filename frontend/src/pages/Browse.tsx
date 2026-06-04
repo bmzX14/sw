@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { API } from "../lib/api";
 import { loadKakaoMapsSdk } from "../lib/kakaoMaps";
+import { normalizeSeoulDistrict, SEOUL_DISTRICTS } from "../lib/seoulDistricts";
 import AppNav from "../components/AppNav";
 
 type PostType =
@@ -69,6 +70,10 @@ function getCoordinateKey(latitude: number, longitude: number) {
   return `${latitude.toFixed(6)},${longitude.toFixed(6)}`;
 }
 
+function formatWonFromTenThousandUnit(value: number) {
+  return `₩${(value * 10000).toLocaleString()}`;
+}
+
 function getOffsetMarkerPosition(
   kakao: any,
   latitude: number,
@@ -115,7 +120,7 @@ export default function Browse() {
         : p.post_type === "sublet" ? "Short-term Rental"
         : "Contract Transfer",
       title: p.description_en?.slice(0, 60) || "Room Post",
-      region: p.district || "",
+      region: normalizeSeoulDistrict(p.district, p.full_address),
       address: p.full_address || "",
       rent: p.monthly_rent || 0,
       deposit: p.deposit || 0,
@@ -142,16 +147,20 @@ export default function Browse() {
   }
 };
   const regions = useMemo(() => {
-    const uniqueRegions = Array.from(new Set(posts.map((post) => post.region)));
-    return ["All", ...uniqueRegions];
-  }, [posts]);
+    const districtNames = SEOUL_DISTRICTS.map((district) => district.name);
+    return ["All", ...districtNames];
+  }, []);
+  const selectedDistrict = useMemo(
+    () => SEOUL_DISTRICTS.find((district) => district.name === normalizeSeoulDistrict(regionFilter)),
+    [regionFilter]
+  );
 
   const filteredPosts = posts.filter((post) => {
     const matchStatus = post.status === "active";
     const matchType = typeFilter === "All" || post.postType === typeFilter;
     const matchRegion = regionFilter === "All" || post.region === regionFilter;
     const matchBudget =
-      maxBudget.trim() === "" || post.rent <= Number(maxBudget);
+      maxBudget.trim() === "" || post.rent * 10000 <= Number(maxBudget);
 
     return matchStatus && matchType && matchRegion && matchBudget;
   });
@@ -221,7 +230,7 @@ export default function Browse() {
       ${post.region}
     </p>
     <p style="font-size:13px;color:#888;margin:0 0 8px;">
-      ${post.rent}0,000 KRW / month
+      ${formatWonFromTenThousandUnit(post.rent)} / month
     </p>
     <p style="font-size:11px;color:#2E86AB;margin:0;text-decoration:underline;">
       View Post →
@@ -238,7 +247,10 @@ export default function Browse() {
           });
         });
 
-        if (hasMarker) {
+        if (selectedDistrict) {
+          map.setLevel(6);
+          map.setCenter(new kakao.maps.LatLng(selectedDistrict.lat, selectedDistrict.lng));
+        } else if (hasMarker) {
           map.setBounds(bounds);
         }
       })
@@ -254,7 +266,7 @@ export default function Browse() {
     return () => {
       isCancelled = true;
     };
-  }, [filteredPosts, navigate]);
+  }, [filteredPosts, navigate, selectedDistrict]);
 
 
 
@@ -310,9 +322,9 @@ export default function Browse() {
           </div>
 
           <div style={styles.fieldGroup}>
-            <label style={styles.label}>Region</label>
+            <label style={styles.label}>Region / District</label>
             <select
-              aria-label="Region"
+              aria-label="Region / District"
               style={styles.select}
               value={regionFilter}
               onChange={(e) => setRegionFilter(e.target.value)}
@@ -326,13 +338,13 @@ export default function Browse() {
           </div>
 
           <div style={styles.fieldGroup}>
-            <label style={styles.label}>Max Rent</label>
+            <label style={styles.label}>Max Rent (KRW)</label>
             <input
               aria-label="Max Rent"
               style={styles.input}
               type="number"
               min="0"
-              placeholder="e.g. 50"
+              placeholder="e.g. 500000"
               value={maxBudget}
               onChange={(e) => setMaxBudget(e.target.value)}
             />
@@ -390,12 +402,12 @@ export default function Browse() {
 
                     <div>
                       <p style={styles.infoLabel}>Rent</p>
-                      <p style={styles.infoValue}>{post.rent}0,000 KRW</p>
+                      <p style={styles.infoValue}>{formatWonFromTenThousandUnit(post.rent)}</p>
                     </div>
 
                     <div>
                       <p style={styles.infoLabel}>Deposit</p>
-                      <p style={styles.infoValue}>{post.deposit}0,000 KRW</p>
+                      <p style={styles.infoValue}>{formatWonFromTenThousandUnit(post.deposit)}</p>
                     </div>
 
                     <div>

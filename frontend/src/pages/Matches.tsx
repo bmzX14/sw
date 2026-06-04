@@ -49,6 +49,14 @@ interface Match{
     owner?: MatchUser;
 }
 
+function formatWonFromTenThousandUnit(value?: number | null) {
+    if (value === null || value === undefined || !Number.isFinite(value)) {
+        return "—";
+    }
+
+    return `₩${(value * 10000).toLocaleString()}`;
+}
+
 //Main Matches Component
 
 export default function Matches() {
@@ -309,10 +317,10 @@ export default function Matches() {
                     <p style={styles.postDistrict}>📍 {match.posts?.district}</p>
                     <div style={styles.postPriceRow} className="roomies-mobile-wrap">
                         <span style={styles.postPrice}>
-                        ₩{match.posts?.monthly_rent?.toLocaleString()}/mo
+                        {formatWonFromTenThousandUnit(match.posts?.monthly_rent)}/mo
                         </span>
                         <span style={styles.postDeposit}>
-                        Deposit: ₩{match.posts?.deposit?.toLocaleString()}
+                        Deposit: {formatWonFromTenThousandUnit(match.posts?.deposit)}
                         </span>
                     </div>
                     <p style={styles.matchDate}>Requested {formatDate(match.created_at)}</p>
@@ -404,10 +412,10 @@ export default function Matches() {
                     <p style={styles.postDistrict}>📍 {match.posts?.district}</p>
                     <div style={styles.postPriceRow} className="roomies-mobile-wrap">
                         <span style={styles.postPrice}>
-                        ₩{match.posts?.monthly_rent?.toLocaleString()}/mo
+                        {formatWonFromTenThousandUnit(match.posts?.monthly_rent)}/mo
                         </span>
                         <span style={styles.postDeposit}>
-                        Deposit: ₩{match.posts?.deposit?.toLocaleString()}
+                        Deposit: {formatWonFromTenThousandUnit(match.posts?.deposit)}
                         </span>
                     </div>
                     {/* Show full address only if accepted */}

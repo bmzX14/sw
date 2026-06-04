@@ -15,6 +15,19 @@ import {
 } from "../services/profileService";
 import type { UserProfile } from "../types/user";
 
+function parseBudgetInput(value: string): number | null {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) return null;
+
+  const parsedValue = Number(trimmedValue);
+  return Number.isFinite(parsedValue) ? parsedValue : null;
+}
+
+function formatBudgetDisplay(value: number | null): string {
+  if (value === null) return "—";
+  return `${value}0,000 KRW`;
+}
+
 export default function Profile() {
   const navigate = useNavigate();
 
@@ -346,17 +359,25 @@ export default function Profile() {
 
           {/* Budget */}
             <div style={styles.section}>
-            <p style={styles.sectionLabel}>Monthly Budget (KRW)</p>
+            <p style={styles.sectionLabel}>Monthly Budget (10,000 KRW)</p>
                 <div style={styles.grid2} className="roomies-mobile-grid-1">
                 <div style={styles.fieldGroup}>
                 <label style={styles.label}>Minimum</label>
                 {editing ? (
-                    <input aria-label="Minimum Budget" style={styles.input} type="number" placeholder="e.g. 300000"
-                    value={profile.budget_min || ""}
-                    onChange={(e) => setProfile({ ...profile, budget_min: Number(e.target.value) })} />
+                    <input
+                      aria-label="Minimum Budget"
+                      style={styles.input}
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 30"
+                      value={profile.budget_min ?? ""}
+                      onChange={(e) =>
+                        setProfile({ ...profile, budget_min: parseBudgetInput(e.target.value) })
+                      }
+                    />
                 ) : (
                     <p style={styles.value}>
-                    {profile.budget_min ? `₩${profile.budget_min.toLocaleString()}` : "—"}
+                    {formatBudgetDisplay(profile.budget_min)}
                     </p>
                 )}
                 </div>
@@ -364,16 +385,25 @@ export default function Profile() {
                 <div style={styles.fieldGroup}>
                 <label style={styles.label}>Maximum</label>
                 {editing ? (
-                    <input aria-label="Maximum Budget" style={styles.input} type="number" placeholder="e.g. 700000"
-                    value={profile.budget_max || ""}
-                    onChange={(e) => setProfile({ ...profile, budget_max: Number(e.target.value) })} />
+                    <input
+                      aria-label="Maximum Budget"
+                      style={styles.input}
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 70"
+                      value={profile.budget_max ?? ""}
+                      onChange={(e) =>
+                        setProfile({ ...profile, budget_max: parseBudgetInput(e.target.value) })
+                      }
+                    />
                 ) : (
                     <p style={styles.value}>
-                    {profile.budget_max ? `₩${profile.budget_max.toLocaleString()}` : "—"}
+                    {formatBudgetDisplay(profile.budget_max)}
                     </p>
                 )}
                 </div>
             </div>
+            <p style={styles.hint}>Enter your budget in units of 10,000 KRW.</p>
             </div>
 
           {/* Student ID Upload */}

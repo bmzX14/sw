@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { API } from "../lib/api";
 import { resolveListingCoordinates } from "../lib/kakaoMaps";
+import { SEOUL_DISTRICTS } from "../lib/seoulDistricts";
 import AppNav from "../components/AppNav";
 import { supabase } from "../lib/supabase";
 
@@ -87,34 +88,6 @@ const roomTypeOptions = [
   { label: "Officetel", value: "officetel" },
   { label: "Apartment", value: "apartment" },
   { label: "Shared House", value: "shared_house" },
-];
-
-const SEOUL_DISTRICTS = [
-    { name: "Gangnam-gu", lat: 37.5172, lng: 127.0473 },
-    { name: "Gangdong-gu", lat: 37.5301, lng: 127.1238 },
-    { name: "Gangbuk-gu", lat: 37.6396, lng: 127.0253 },
-    { name: "Gangseo-gu", lat: 37.5509, lng: 126.8495 },
-    { name: "Gwanak-gu", lat: 37.4784, lng: 126.9516 },
-    { name: "Gwangjin-gu", lat: 37.5384, lng: 127.0822 },
-    { name: "Guro-gu", lat: 37.4954, lng: 126.8874 },
-    { name: "Geumcheon-gu", lat: 37.4600, lng: 126.9002 },
-    { name: "Nowon-gu", lat: 37.6542, lng: 127.0568 },
-    { name: "Dobong-gu", lat: 37.6688, lng: 127.0471 },
-    { name: "Dongdaemun-gu", lat: 37.5744, lng: 127.0396 },
-    { name: "Dongjak-gu", lat: 37.5124, lng: 126.9393 },
-    { name: "Mapo-gu", lat: 37.5663, lng: 126.9014 },
-    { name: "Seodaemun-gu", lat: 37.5791, lng: 126.9368 },
-    { name: "Seocho-gu", lat: 37.4836, lng: 127.0327 },
-    { name: "Seongdong-gu", lat: 37.5633, lng: 127.0369 },
-    { name: "Seongbuk-gu", lat: 37.5894, lng: 127.0167 },
-    { name: "Songpa-gu", lat: 37.5145, lng: 127.1059 },
-    { name: "Yangcheon-gu", lat: 37.5270, lng: 126.8561 },
-    { name: "Yeongdeungpo-gu", lat: 37.5263, lng: 126.8963 },
-    { name: "Yongsan-gu", lat: 37.5326, lng: 126.9905 },
-    { name: "Eunpyeong-gu", lat: 37.6027, lng: 126.9291 },
-    { name: "Jongno-gu", lat: 37.5735, lng: 126.9790 },
-    { name: "Jung-gu", lat: 37.5640, lng: 126.9975 },
-    { name: "Jungnang-gu", lat: 37.6063, lng: 127.0928 },
 ];
 
 function normalizePhotos(value: unknown): string[] {
