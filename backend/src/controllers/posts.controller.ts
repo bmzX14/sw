@@ -124,6 +124,55 @@ export async function getAllPosts(req: Request, res: Response) {
         return res.status(400).json({ message: error.message || "Failed to fetch posts." });
         }
     }
+
+// Return all posts created by the authenticated user for management views.
+export async function getMyPosts(req: AuthenticatedRequest, res: Response) {
+    const userId = req.user!.id;
+
+    try {
+        const { data, error } = await supabaseAdmin
+            .from("posts")
+            .select(`
+                id,
+                user_id,
+                post_type,
+                district,
+                full_address,
+                monthly_rent,
+                deposit,
+                available_from,
+                available_until,
+                gender_preference,
+                lifestyle_tags,
+                description_en,
+                description_ko,
+                photos,
+                status,
+                near_university,
+                room_type,
+                created_at,
+                latitude,
+                longitude,
+                users (
+                    id,
+                    name,
+                    university,
+                    is_verified,
+                    profile_photo,
+                    nationality
+                )
+            `)
+            .eq("user_id", userId)
+            .order("created_at", { ascending: false });
+
+        if (error) throw error;
+
+        return res.json(data);
+    } catch (error: any) {
+        return res.status(400).json({ message: error.message || "Failed to fetch your posts." });
+    }
+}
+
 // Return one post and reveal the full address only to authorized viewers.
 export async function getPostById(req: Request, res: Response) {
     const { id } = req.params;
@@ -213,6 +262,35 @@ export async function getPostForEdit(req: AuthenticatedRequest, res: Response) {
         return res.json(data);
     } catch (error: any) {
         return res.status(500).json({ message: error.message || "Failed to fetch post for editing." });
+    }
+}
+
+// Update only the status of a post owned by the authenticated user.
+export async function updatePostStatus(req: AuthenticatedRequest, res: Response) {
+    const userId = req.user!.id;
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (status !== "active" && status !== "closed") {
+        return res.status(400).json({ message: "Status must be either active or closed." });
+    }
+
+    try {
+        const { data, error } = await supabaseAdmin
+            .from("posts")
+            .update({ status })
+            .eq("id", id)
+            .eq("user_id", userId)
+            .select("id, status")
+            .single();
+
+        if (error || !data) {
+            return res.status(404).json({ message: "Post not found or not authorized." });
+        }
+
+        return res.json(data);
+    } catch (error: any) {
+        return res.status(500).json({ message: error.message || "Failed to update post status." });
     }
 }
 

@@ -25,10 +25,13 @@ type CompletedMatch = {
   roommateUniversity: string;
   roommatePhoto: string;
   roommateId: string;
+  postId: string;
   postTitle: string;
   roomRegion: string;
   completedAt: string;
   status: string;
+  hasCurrentUserReview: boolean;
+  currentUserCompletedTransaction: boolean;
 };
 
 type ReviewItem = {
@@ -54,6 +57,7 @@ export default function Review() {
   const [rating, setRating] = useState<number>(0);
   const [hoveredRating, setHoveredRating] = useState<number>(0);
   const [comment, setComment] = useState("");
+  const [transactionCompleted, setTransactionCompleted] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -78,12 +82,15 @@ export default function Review() {
         roommateUniversity: opponent?.university || "",
         roommatePhoto: opponent?.profile_photo || "",
         roommateId: opponent?.id || "",
+        postId: match.posts?.id || "",
         postTitle: match.posts?.district
           ? `${match.posts.post_type} · ${match.posts.district}`
           : "Matched Post",
         roomRegion: match.posts?.district || "Seoul",
         completedAt: new Date(match.created_at).toLocaleDateString(),
         status: match.status,
+        hasCurrentUserReview: Boolean(match.has_current_user_review),
+        currentUserCompletedTransaction: Boolean(match.current_user_completed_transaction),
       };
     });
 
@@ -162,18 +169,35 @@ export default function Review() {
         match_id: selectedMatch.id,
         rating,
         comment: comment.trim() || "No written comment was added, but a star rating was submitted.",
+        transaction_completed: transactionCompleted,
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       // Refresh reviews after submit
       await fetchReviews(selectedMatch.roommateId);
+      setMatches((prev) =>
+        prev.map((match) =>
+          match.id === selectedMatch.id
+            ? {
+                ...match,
+                hasCurrentUserReview: true,
+                currentUserCompletedTransaction: transactionCompleted,
+              }
+            : match
+        )
+      );
 
       // Reset form
       setRating(0);
       setHoveredRating(0);
       setComment("");
-      setSuccessMessage("Review submitted successfully.");
+      setTransactionCompleted(false);
+      setSuccessMessage(
+        transactionCompleted
+          ? "Review submitted. The post will close after both sides confirm completion."
+          : "Review submitted successfully."
+      );
       setTimeout(() => setSuccessMessage(""), 2500);
     } catch (err: any) {
       setError(err.response?.data?.message || "Failed to submit review.");
@@ -186,10 +210,7 @@ export default function Review() {
   const selectedMatch = matches.find(m => m.id === selectedMatchId);
 
   // Check if current match already has a review submitted
-  const reviewedMatchIds = reviews.map(r => r.matchId);
-  const selectedMatchAlreadyReviewed = selectedMatch
-    ? reviewedMatchIds.includes(selectedMatch.id)
-    : false;
+  const selectedMatchAlreadyReviewed = selectedMatch?.hasCurrentUserReview || false;
 
   // Calculate average rating
   const averageRating = useMemo(() => {
@@ -286,6 +307,7 @@ export default function Review() {
                         setRating(0);
                         setHoveredRating(0);
                         setComment("");
+                        setTransactionCompleted(false);
                         setSuccessMessage("");
                         setError("");
                       }}>
@@ -400,6 +422,16 @@ export default function Review() {
                           placeholder="Write a short comment about communication, cleanliness, reliability, or roommate manners."
                         />
                       </div>
+
+                      <label style={styles.checkboxRow} className="roomies-mobile-review-check">
+                        <input
+                          type="checkbox"
+                          checked={transactionCompleted}
+                          onChange={(e) => setTransactionCompleted(e.target.checked)}
+                          style={styles.checkbox}
+                        />
+                        <span style={styles.checkboxText}>The transaction is completed</span>
+                      </label>
 
                       <button type="submit" style={styles.submitBtn} disabled={submitting}>
                         {submitting ? "Submitting..." : "Submit Review"}
@@ -516,6 +548,9 @@ const styles: Record<string, CSSProperties> = {
   starDisplay: { fontSize: 15, marginRight: 2 },
   ratingText: { marginLeft: 12, fontSize: 13, color: "#888" },
   textarea: { border: "1.5px solid #ddd", padding: "14px", fontSize: 14, fontFamily: "'Georgia', serif", color: "#1a1a1a", background: "transparent", outline: "none", width: "100%", minHeight: 120, resize: "vertical", lineHeight: 1.6, boxSizing: "border-box" },
+  checkboxRow: { display: "flex", alignItems: "center", gap: 10, marginBottom: 22, cursor: "pointer" },
+  checkbox: { width: 16, height: 16, cursor: "pointer" },
+  checkboxText: { fontSize: 13, color: "#666", lineHeight: 1.6 },
   submitBtn: { width: "100%", background: "#1a1a1a", border: "none", padding: "14px 24px", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", fontFamily: "'Georgia', serif", color: "#fff", borderRadius: 1 },
   divider: { height: 1, background: "#f0ede8", margin: "32px 0" },
   profilePreview: { marginTop: 6 },

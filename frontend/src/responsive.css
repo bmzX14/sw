@@ -38,6 +38,22 @@
     flex-wrap: wrap !important;
   }
 
+  .roomies-responsive .roomies-mobile-actions {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+    width: 100% !important;
+  }
+
+  .roomies-responsive .roomies-mobile-actions > * {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .roomies-responsive .roomies-mobile-review-check {
+    align-items: flex-start !important;
+  }
+
   .roomies-responsive .roomies-mobile-full {
     width: 100% !important;
   }

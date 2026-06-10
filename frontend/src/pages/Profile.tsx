@@ -288,9 +288,17 @@ export default function Profile() {
                 <p style={styles.sectionSub}>Manage your roommate preferences</p>
             </div>
             {!editing ? (
-                <button style={styles.editBtn} onClick={() => setEditing(true)}>
-                Edit Profile
-                </button>
+                <div style={styles.headerBtnGroup}>
+                  <button
+                    style={styles.managementBtn}
+                    onClick={() => navigate("/post-management")}
+                  >
+                    Post Management
+                  </button>
+                  <button style={styles.editBtn} onClick={() => setEditing(true)}>
+                    Edit Profile
+                  </button>
+                </div>
             ) : (
                 <div style={styles.btnRow}>
                     <button style={styles.cancelBtn} onClick={() => { 
@@ -737,6 +745,24 @@ const styles: Record<string, CSSProperties> = {
         fontSize: 13,
         color: "#aaa",
         fontFamily: "'Georgia', serif",
+    },
+    headerBtnGroup: {
+        display: "flex",
+        gap: 10,
+        flexWrap: "wrap",
+        justifyContent: "flex-end",
+    },
+    managementBtn: {
+        background: "#1a1a1a",
+        border: "none",
+        padding: "10px 20px",
+        fontSize: 12,
+        letterSpacing: "0.1em",
+        textTransform: "uppercase" as const,
+        cursor: "pointer",
+        fontFamily: "'Georgia', serif",
+        color: "#fff",
+        borderRadius: 1,
     },
     editBtn: {
         background: "transparent",

@@ -7,7 +7,7 @@ const supabaseAdmin_1 = require("../lib/supabaseAdmin");
 // Submit one review for the other user in an accepted match.
 async function submitReview(req, res) {
     const reviewerId = req.user.id;
-    const { reviewee_id, match_id, rating, comment } = req.body;
+    const { reviewee_id, match_id, rating, comment, transaction_completed } = req.body;
     // Validate required fields
     if (!reviewee_id || !match_id || !rating) {
         return res.status(400).json({ message: "reviewee_id, match_id and rating are required." });
@@ -20,7 +20,7 @@ async function submitReview(req, res) {
         // Security: verify reviewer was part of this accepted match
         const { data: match, error: matchError } = await supabaseAdmin_1.supabaseAdmin
             .from("matches")
-            .select("id, requester_id, owner_id")
+            .select("id, post_id, requester_id, owner_id")
             .eq("id", match_id)
             .eq("status", "accepted")
             .or(`requester_id.eq.${reviewerId},owner_id.eq.${reviewerId}`)
@@ -51,11 +51,32 @@ async function submitReview(req, res) {
             match_id,
             rating,
             comment,
+            // Store whether this reviewer confirmed the deal is done.
+            transaction_completed: Boolean(transaction_completed),
         })
             .select()
             .single();
         if (error)
             throw error;
+        if (transaction_completed) {
+            const { data: completionReviews, error: completionError } = await supabaseAdmin_1.supabaseAdmin
+                .from("reviews")
+                .select("reviewer_id")
+                .eq("match_id", match_id)
+                .eq("transaction_completed", true);
+            if (completionError)
+                throw completionError;
+            const completedByOwner = completionReviews.some((review) => review.reviewer_id === match.owner_id);
+            const completedByRequester = completionReviews.some((review) => review.reviewer_id === match.requester_id);
+            if (completedByOwner && completedByRequester) {
+                const { error: closePostError } = await supabaseAdmin_1.supabaseAdmin
+                    .from("posts")
+                    .update({ status: "closed" })
+                    .eq("id", match.post_id);
+                if (closePostError)
+                    throw closePostError;
+            }
+        }
         return res.status(201).json(data);
     }
     catch (err) {

@@ -9,6 +9,7 @@ import Matches from "./pages/Matches";
 import PostDetail from "./pages/PostDetail";
 import PostEdit from "./pages/PostEdit";
 import PostForm from './pages/PostForm';
+import PostManagement from "./pages/PostManagement";
 import Profile from "./pages/Profile";
 import Register from "./pages/Register";
 import Review from './pages/Review';
@@ -76,6 +77,9 @@ function App() {
         } />
         <Route path="/post-form" element={
           <ProtectedRoute><PostForm /></ProtectedRoute>
+        } />
+        <Route path="/post-management" element={
+          <ProtectedRoute><PostManagement /></ProtectedRoute>
         } />
       </Routes>
     </BrowserRouter>

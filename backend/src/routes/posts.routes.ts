@@ -3,8 +3,10 @@ import {
     createPost,
     deletePost,
     getAllPosts,
+    getMyPosts,
     getPostById,
     getPostForEdit,
+    updatePostStatus,
     updatePost,
 } from "../controllers/posts.controller";
 import { requireAuth } from "../middleware/auth.middleware";
@@ -15,6 +17,9 @@ const router = Router();
 
 // List active public posts for browse pages.
 router.get("/", getAllPosts);
+
+// List posts created by the authenticated user for management pages.
+router.get("/mine", requireAuth, getMyPosts);
 
 // Fetch the owner's editable post payload, including private fields.
 router.get("/:id/edit", requireAuth, getPostForEdit);
@@ -27,6 +32,9 @@ router.post("/", requireAuth, createPost);
 
 // Update an existing post owned by the current user.
 router.put("/:id", requireAuth, updatePost);
+
+// Update only the status of an existing post owned by the current user.
+router.patch("/:id/status", requireAuth, updatePostStatus);
 
 // Delete an existing post owned by the current user.
 router.delete("/:id", requireAuth, deletePost);

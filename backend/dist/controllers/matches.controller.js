@@ -293,7 +293,32 @@ async function getAcceptedMatches(req, res) {
             .order("created_at", { ascending: false });
         if (error)
             throw error;
-        return res.json(data);
+        const matchIds = data.map((match) => match.id);
+        if (matchIds.length === 0) {
+            return res.json(data);
+        }
+        const { data: myReviews, error: myReviewsError } = await supabaseAdmin_1.supabaseAdmin
+            .from("reviews")
+            .select("match_id, transaction_completed")
+            .eq("reviewer_id", userId)
+            .in("match_id", matchIds);
+        if (myReviewsError)
+            throw myReviewsError;
+        const reviewByMatchId = new Map(myReviews.map((review) => [
+            review.match_id,
+            {
+                has_current_user_review: true,
+                current_user_completed_transaction: Boolean(review.transaction_completed),
+            },
+        ]));
+        const enriched = data.map((match) => ({
+            ...match,
+            ...(reviewByMatchId.get(match.id) || {
+                has_current_user_review: false,
+                current_user_completed_transaction: false,
+            }),
+        }));
+        return res.json(enriched);
     }
     catch (err) {
         return res.status(500).json({ message: err.message || "Failed to fetch accepted matches." });

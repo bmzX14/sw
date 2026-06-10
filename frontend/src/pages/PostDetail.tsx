@@ -152,26 +152,6 @@ export default function PostDetail() {
     }
   };
 
-  const handleDelete = async () => {
-    if (!post) return;
-    if (!window.confirm("Delete this post? This action cannot be undone.")) return;
-
-    setActionLoading(true);
-    setError("");
-
-    try {
-      const token = await getToken();
-      await axios.delete(`${API}/posts/${post.id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      navigate("/browse");
-    } catch (err: any) {
-      setError(getRequestErrorMessage(err, "Failed to delete post."));
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
   if (loading) {
     return <div style={styles.loadingPage}>Loading post...</div>;
   }
@@ -305,16 +285,11 @@ export default function PostDetail() {
             <>
               <div>
                 <h2 style={styles.actionTitle}>Manage your post</h2>
-                <p style={styles.actionText}>Only you can edit or delete this post.</p>
+                <p style={styles.actionText}>Edit and delete actions now live in Post Management for easier control.</p>
               </div>
-              <div style={styles.actionBtns}>
-                <button style={styles.mainBtn} onClick={() => navigate(`/post-edit/${post.id}`)}>
-                  Edit Post
-                </button>
-                <button style={styles.deleteBtn} onClick={handleDelete} disabled={actionLoading}>
-                  Delete
-                </button>
-              </div>
+              <button style={styles.mainBtn} onClick={() => navigate("/post-management")}>
+                Open Post Management
+              </button>
             </>
           ) : (
             <>
@@ -385,9 +360,7 @@ const styles: Record<string, CSSProperties> = {
   actionPanel: { background: "#ffffff", borderRadius: 2, boxShadow: "0 4px 40px rgba(0,0,0,0.06)", padding: "32px 48px", marginBottom: 28, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24 },
   actionTitle: { fontSize: 22, fontWeight: 400, color: "#1a1a1a", margin: "0 0 8px" },
   actionText: { fontSize: 13, color: "#888", margin: 0, lineHeight: 1.6 },
-  actionBtns: { display: "flex", gap: 12, alignItems: "center" },
   mainBtn: { background: "#1a1a1a", border: "none", padding: "12px 26px", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", fontFamily: "'Georgia', serif", color: "#fff", borderRadius: 1, whiteSpace: "nowrap" },
-  deleteBtn: { background: "transparent", border: "1.5px solid #fecaca", padding: "12px 22px", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", fontFamily: "'Georgia', serif", color: "#c0392b", borderRadius: 1 },
   notFoundBox: { maxWidth: 560, margin: "140px auto 0", background: "#ffffff", boxShadow: "0 4px 40px rgba(0,0,0,0.06)", padding: "48px", textAlign: "center", position: "relative", zIndex: 1 },
   notFoundTitle: { fontSize: 28, fontWeight: 400, margin: "0 0 12px" },
   notFoundText: { fontSize: 14, color: "#888", lineHeight: 1.6, margin: "0 0 24px" },
