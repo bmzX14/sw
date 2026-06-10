@@ -224,6 +224,7 @@ export default function PostEdit() {
     if (files.length === 0) return;
 
     setPhotoFiles(files);
+    setError("");
     Promise.all(
       files.map((file) => new Promise<string>((resolve) => {
         const reader = new FileReader();
@@ -231,6 +232,21 @@ export default function PostEdit() {
         reader.readAsDataURL(file);
       }))
     ).then((previews) => setPhotoPreviews(previews));
+  };
+
+  const removePhotoAtIndex = (indexToRemove: number) => {
+    if (photoFiles.length > 0) {
+      const nextPhotoFiles = photoFiles.filter((_, index) => index !== indexToRemove);
+      const nextPhotoPreviews = photoPreviews.filter((_, index) => index !== indexToRemove);
+
+      setPhotoFiles(nextPhotoFiles);
+      setPhotoPreviews(nextPhotoFiles.length > 0 ? nextPhotoPreviews : existingPhotos);
+    } else {
+      setExistingPhotos((prev) => prev.filter((_, index) => index !== indexToRemove));
+      setPhotoPreviews((prev) => prev.filter((_, index) => index !== indexToRemove));
+    }
+
+    setError("");
   };
 
   const uploadPhotos = async (): Promise<string[]> => {
@@ -470,7 +486,21 @@ export default function PostEdit() {
             <div style={styles.previewGrid}>
               {photoPreviews.length > 0 ? (
                 photoPreviews.map((photo, index) => (
-                  <img key={`${photo}-${index}`} src={photo} alt={`Room ${index + 1}`} style={styles.previewImage} />
+                  <div key={`${photo}-${index}`} style={styles.previewCard}>
+                    <button
+                      type="button"
+                      style={styles.removePreviewBtn}
+                      onClick={() => removePhotoAtIndex(index)}
+                      aria-label={`Remove photo ${index + 1}`}
+                    >
+                      ×
+                    </button>
+                    <img
+                      src={photo}
+                      alt={`Room ${index + 1}`}
+                      style={styles.previewImage}
+                    />
+                  </div>
                 ))
               ) : (
                 <p style={styles.hint}>No photos selected.</p>
@@ -540,7 +570,9 @@ const styles: Record<string, CSSProperties> = {
   uploadBox: { display: "flex", alignItems: "center", justifyContent: "center", border: "1.5px dashed #ddd", padding: "20px", cursor: "pointer", borderRadius: 2, marginTop: 8 },
   uploadText: { fontSize: 13, color: "#888" },
   previewGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginTop: 16 },
+  previewCard: { position: "relative" },
   previewImage: { width: "100%", height: 130, objectFit: "cover", borderRadius: 2, border: "1px solid #ebe9e4" },
+  removePreviewBtn: { position: "absolute", top: 8, right: 8, width: 28, height: 28, borderRadius: "50%", border: "1px solid rgba(255,255,255,0.85)", background: "rgba(26,26,26,0.82)", color: "#fff", fontSize: 18, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0 },
   hint: { fontSize: 11, color: "#bbb", marginTop: 8, lineHeight: 1.6 },
   submitBtn: { width: "100%", background: "#1a1a1a", border: "none", padding: "14px 24px", fontSize: 12, letterSpacing: "0.1em", textTransform: "uppercase", cursor: "pointer", fontFamily: "'Georgia', serif", color: "#fff", borderRadius: 1, marginTop: 16 },
 };
